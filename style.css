@@ -290,6 +290,47 @@ body {
     }
 }
 
+/* Avatar added above welcome logic */
+.hero-avatar-container {
+    margin-bottom: 20px;
+    animation: fadeInDown 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hero-avatar {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 25px rgba(224, 112, 46, 0.6)) drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-10px);
+        filter: drop-shadow(0 0 35px rgba(224, 112, 46, 0.8)) drop-shadow(0 15px 20px rgba(0, 0, 0, 0.6));
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
 .hero-title {
     font-family: 'Etna Sans Serif', 'Arial Black', Impact, sans-serif;
     font-size: clamp(60px, 10vw, 120px);
