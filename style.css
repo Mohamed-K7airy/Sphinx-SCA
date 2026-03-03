@@ -662,7 +662,7 @@ body {
 
 @media (max-width: 480px) {
     .hero-title {
-        font-size: clamp(32px, 9vw, 50px);
+        font-size: clamp(40px, 12vw, 60px);
         letter-spacing: 2px;
     }
 
@@ -686,6 +686,8 @@ body {
     }
 
     .search-input {
+        width: calc(100% - 80px);
+        /* Leave room for buttons */
         font-size: 14px;
         padding: 0 8px;
     }
