@@ -142,7 +142,11 @@
         document.addEventListener('DOMContentLoaded', async function () {
             const { data: { session } } = await supabase.auth.getSession();
 
+            let currentUserId = null;
+
             if (session) {
+                currentUserId = session.user.id;
+
                 // Try to get name from user metadata, fallback to email prefix
                 const userMetadata = session.user.user_metadata;
                 let firstName = 'User';
@@ -168,6 +172,29 @@
                     await supabase.auth.signOut();
                     window.location.reload();
                 });
+            }
+
+            async function saveMessageToSupabase(content, sender) {
+                if (!currentUserId) {
+                    console.warn('User is not logged in. Message not saved.');
+                    return;
+                }
+
+                const { data, error } = await supabase
+                    .from('messages')
+                    .insert([
+                        {
+                            user_id: currentUserId,
+                            content: content,
+                            sender: sender
+                        }
+                    ]);
+
+                if (error) {
+                    console.error('Error saving message:', error);
+                } else {
+                    console.log('Message saved successfully!');
+                }
             }
 
             // Mobile menu toggle
@@ -222,6 +249,7 @@
 
                     // Add the user's message
                     addMessage(initialMessage, 'user');
+                    saveMessageToSupabase(initialMessage, 'user');
 
                     // Simulate AI loading and response
                     simulateAIResponse(initialMessage);
@@ -277,6 +305,8 @@
                     // Add dummy response
                     const response = "Sphinx-GPT Coming Soon!!";
                     addMessage(response, 'ai');
+
+                    saveMessageToSupabase(response, 'ai');
                 }, 1500); // 1.5s delay
             }
 
@@ -291,6 +321,8 @@
                 const msg = chatInput.value;
                 if (msg.trim()) {
                     addMessage(msg, 'user');
+                    saveMessageToSupabase(msg, 'user');
+
                     chatInput.value = ''; // clear input
                     simulateAIResponse(msg);
                 }
@@ -300,6 +332,8 @@
                     const msg = chatInput.value;
                     if (msg.trim()) {
                         addMessage(msg, 'user');
+                        saveMessageToSupabase(msg, 'user');
+
                         chatInput.value = ''; // clear input
                         simulateAIResponse(msg);
                     }
