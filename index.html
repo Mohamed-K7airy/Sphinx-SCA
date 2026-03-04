@@ -172,39 +172,6 @@
                     await supabase.auth.signOut();
                     window.location.reload();
                 });
-
-                // Fetch chat history
-                fetchChatHistory(firstName);
-            }
-
-            async function fetchChatHistory(userName) {
-                if (!currentUserId) return;
-
-                try {
-                    const { data: messages, error } = await supabase
-                        .from('messages')
-                        .select('*')
-                        .eq('user_id', currentUserId)
-                        .order('created_at', { ascending: true });
-
-                    if (error) throw error;
-
-                    if (messages && messages.length > 0) {
-                        // Switch immediately to chat interface
-                        const heroSection = document.querySelector('.hero');
-                        const chatInterface = document.getElementById('chat-interface');
-
-                        heroSection.style.display = 'none';
-                        chatInterface.style.display = 'flex';
-
-                        // Render messages
-                        messages.forEach(msg => {
-                            addMessage(msg.content, msg.sender, userName);
-                        });
-                    }
-                } catch (err) {
-                    console.error('Error fetching chat history:', err);
-                }
             }
 
             async function saveMessageToSupabase(content, sender) {
