@@ -300,14 +300,14 @@
 
                 try {
                     // Fetching from your Render Backend
-                    // الرابط المذكور هو /chat ولكن يمكن أن يكون /classify كما في الكود المحلي لذلك سنرسل البيانات لتتناسب معه
-                    const res = await fetch('https://sphinx-model.onrender.com/chat', {
+                    // الرابط الصحيح الذي يعالج الطلبات في الـ Backend هو /classify
+                    const res = await fetch('https://sphinx-model.onrender.com/classify', {
                         method: 'POST',
                         headers: {
                             "Content-Type": "application/json"
                         },
-                        // يتم إرسال النص، قد يتطلب الخادم 'text' أو 'message' 
-                        body: JSON.stringify({ text: userQuery, message: userQuery, inputs: userQuery })
+                        // يتم إرسال النص، الخادم يستخدم 'text'
+                        body: JSON.stringify({ text: userQuery })
                     });
 
                     if (!res.ok) {
