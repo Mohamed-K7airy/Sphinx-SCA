@@ -66,10 +66,12 @@ body {
 }
 
 .logo-icon {
-    width: 90px;
-    height: 90px;
+    width: 65px;
+    height: 65px;
     object-fit: contain;
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+    margin-top: 10px;
+    /* Adjusting position down */
 }
 
 .logo-text {
@@ -309,11 +311,14 @@ body {
 }
 
 .hero-avatar {
-    width: 180px;
-    height: 180px;
+    width: 250px;
+    height: 250px;
     object-fit: contain;
     filter: drop-shadow(0 0 25px rgba(224, 112, 46, 0.6)) drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
     animation: float 4s ease-in-out infinite;
+    display: block;
+    margin: 0 auto;
+    /* Center alignment */
 }
 
 @keyframes float {
@@ -610,8 +615,10 @@ body {
     }
 
     .logo-icon {
-        width: 65px;
-        height: 65px;
+        width: 50px;
+        height: 50px;
+        margin-top: 5px;
+        /* Adjusting position down */
     }
 
     /* Mobile Navigation */
