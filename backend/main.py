@@ -16,13 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# مسار مجلد الموديل (تأكد من وضع ملفات الموديل مثل model.safetensors و config.json في مجلد باسم "model" بجانب هذا الملف)
-MODEL_PATH = "./model"
+# معرف الموديل الخاص بك على Hugging Face
+MODEL_PATH = "KHAIRY5/Sphinx-SCA"
 
 # محاولة تحميل الموديل عند بدء تشغيل الخادم
 try:
-    print("جاري تحميل الموديل، يرجى الانتظار...")
-    # يمكنك تغيير "text-classification" إلى نوع المهمة المناسب لموديلك إذا كان مختلفاً
+    print("جاري تحميل الموديل من Hugging Face، يرجى الانتظار...")
     classifier = pipeline("text-classification", model=MODEL_PATH, tokenizer=MODEL_PATH)
     print("✅ تم تحميل الموديل بنجاح!")
 except Exception as e:
