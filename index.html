@@ -299,14 +299,15 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 try {
-                    // Fetching from HuggingFace Inference API
-                    const res = await fetch('https://api-inference.huggingface.co/models/KHAIRY5/Sphinx-SCA', {
+                    // Fetching from your Render Backend
+                    // الرابط المذكور هو /chat ولكن يمكن أن يكون /classify كما في الكود المحلي لذلك سنرسل البيانات لتتناسب معه
+                    const res = await fetch('https://sphinx-model.onrender.com/chat', {
                         method: 'POST',
                         headers: {
-                            "Authorization": "Bearer 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",
                             "Content-Type": "application/json"
                         },
-                        body: JSON.stringify({ inputs: userQuery })
+                        // يتم إرسال النص، قد يتطلب الخادم 'text' أو 'message' 
+                        body: JSON.stringify({ text: userQuery, message: userQuery, inputs: userQuery })
                     });
 
                     if (!res.ok) {
@@ -316,37 +317,32 @@
                     const data = await res.json();
                     let responseMsg = '';
 
-                    // The Inference API might return an error object or an array of predictions
+                    const labelMap = {
+                        "LABEL_0": "Algebra",
+                        "LABEL_1": "Calculus",
+                        "LABEL_2": "Linear Algebra",
+                        "LABEL_3": "Matrix",
+                        "LABEL_4": "Probability",
+                        "LABEL_5": "Statistics",
+                        "LABEL_6": "Geometry",
+                        "LABEL_7": "Discrete Math",
+                        "LABEL_8": "Word Problem"
+                    };
+
                     if (data.error) {
                         responseMsg = `⚠️ Error: ${data.error}`;
+                    } else if (data.prediction && Array.isArray(data.prediction) && data.prediction.length > 0) {
+                        // Assuming format {"prediction": [{"label": "...", "score": ...}]}
+                        let pred = data.prediction[0];
+                        if (Array.isArray(pred)) pred = pred[0]; // In case it's a nested array
+                        responseMsg = labelMap[pred.label] || pred.label;
+                    } else if (data.response) { // in case the new /chat endpoint returns { "response": "..." }
+                        responseMsg = data.response;
                     } else if (Array.isArray(data) && data.length > 0 && Array.isArray(data[0]) && data[0].length > 0) {
-                        // Correct extraction for Hugging Face typical response: [[{"label": "...", "score": ...}]]
                         const pred = data[0][0];
-
-                        // Map the raw model labels (LABEL_0, etc.) to human-readable English names
-                        const labelMap = {
-                            "LABEL_0": "Algebra",
-                            "LABEL_1": "Calculus",
-                            "LABEL_2": "Linear Algebra",
-                            "LABEL_3": "Matrix",
-                            "LABEL_4": "Probability",
-                            "LABEL_5": "Statistics",
-                            "LABEL_6": "Geometry",
-                            "LABEL_7": "Discrete Math",
-                            "LABEL_8": "Word Problem"
-                        };
-
-                        const readableLabel = labelMap[pred.label] || pred.label;
-                        // Only display the mathematical subject name
-                        responseMsg = readableLabel;
+                        responseMsg = labelMap[pred.label] || pred.label;
                     } else if (Array.isArray(data) && data.length > 0 && data[0].label) {
-                        // Alternative structure: [{"label": "...", "score": ...}]
                         const pred = data[0];
-                        const labelMap = {
-                            "LABEL_0": "Algebra", "LABEL_1": "Calculus", "LABEL_2": "Linear Algebra",
-                            "LABEL_3": "Matrix", "LABEL_4": "Probability", "LABEL_5": "Statistics",
-                            "LABEL_6": "Geometry", "LABEL_7": "Discrete Math", "LABEL_8": "Word Problem"
-                        };
                         responseMsg = labelMap[pred.label] || pred.label;
                     } else {
                         responseMsg = "لم أتمكن من تصنيف المسألة.";
