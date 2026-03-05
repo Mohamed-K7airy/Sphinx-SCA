@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await fetch('https://api-inference.huggingface.co/models/KHAIRY5/Sphinx-SCA', {
+        const response = await fetch('https://router.huggingface.co/models/KHAIRY5/Sphinx-SCA', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.VITE_HF_TOKEN}`,
