@@ -971,28 +971,54 @@ body {
 }
 
 .message-content {
-    background: var(--text-white);
-    padding: 16px 22px;
-    border-radius: 20px;
-    font-size: 15.5px;
+    padding: 18px 24px;
+    border-radius: 24px;
+    font-size: 16px;
     line-height: 1.6;
-    color: var(--text-black);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.03);
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+.message-content:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
 }
 
 .user-message .message-content {
-    background: var(--text-black);
-    /* Sleek high-contrast dark bubble */
-    color: var(--text-white);
-    border: none;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-    border-bottom-right-radius: 4px;
-    /* classic chat bubble tail */
+    background: linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom-right-radius: 6px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 .ai-message .message-content {
-    border-bottom-left-radius: 4px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--text-black);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-bottom-left-radius: 6px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    /* For Math Subject Labels coming from model */
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--bg-orange);
+    text-shadow: 0 1px 1px rgba(224, 112, 46, 0.2);
+}
+
+/* Specific styling for the AI label response (bolding) */
+.ai-message .message-content strong {
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: linear-gradient(90deg, var(--bg-orange), #ff8f4d);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 /* Typing Indicator */
