@@ -1,5 +1,6 @@
 fastapi
-uvicorn
+uvicorn[standard]
 transformers
-torch
+torch --index-url https://download.pytorch.org/whl/cpu
 pydantic
+httpx
