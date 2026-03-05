@@ -286,8 +286,8 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
             }
 
-            // Simulated AI Response Function
-            function simulateAIResponse(userQuery) {
+            // Simulated AI Response Function (Now connected to real Backend)
+            async function simulateAIResponse(userQuery) {
                 // Add a temporary typing indicator
                 const typingDiv = document.createElement('div');
                 typingDiv.classList.add('message', 'ai-message', 'typing-indicator');
@@ -298,16 +298,51 @@
                 chatMessages.appendChild(typingDiv);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
-                setTimeout(() => {
+                try {
+                    const res = await fetch('http://127.0.0.1:8000/classify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ text: userQuery })
+                    });
+
+                    if (!res.ok) {
+                        throw new Error(`Server returned status: ${res.status}`);
+                    }
+
+                    const data = await res.json();
+                    let responseMsg = '';
+
+                    // Check if there was an error from the backend side
+                    if (data.error) {
+                        responseMsg = `⚠️ Error: ${data.error}`;
+                    } else if (data.prediction && Array.isArray(data.prediction) && data.prediction.length > 0) {
+                        // Extract label and score
+                        const pred = data.prediction[0];
+                        // Convert score to percentage
+                        const confidence = (pred.score * 100).toFixed(1);
+                        responseMsg = `تصنيف المسألة: **${pred.label}** (بنسبة ثقة ${confidence}%)`;
+                    } else {
+                        responseMsg = "لم أتمكن من تصنيف المسألة.";
+                    }
+
                     // Remove typing indicator
                     typingDiv.remove();
 
-                    // Add dummy response
-                    const response = "Sphinx-GPT Coming Soon!!";
-                    addMessage(response, 'ai');
+                    // Add actual response
+                    addMessage(responseMsg, 'ai');
+                    saveMessageToSupabase(responseMsg, 'ai');
 
-                    saveMessageToSupabase(response, 'ai');
-                }, 1500); // 1.5s delay
+                } catch (error) {
+                    // Remove typing indicator on error
+                    typingDiv.remove();
+
+                    console.error("Fetch error:", error);
+                    const errorMsg = "عذراً، لا يمكنني الاتصال بخادم الذكاء الاصطناعي حالياً. تأكد من تشغيل الخادم.";
+                    addMessage(errorMsg, 'ai');
+                    // saveMessageToSupabase(errorMsg, 'ai');
+                }
             }
 
             // Event Listeners for Hero Search
