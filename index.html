@@ -299,8 +299,8 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 try {
-                    // Fetching from Vercel Serverless Function (FastAPI)
-                    const res = await fetch('/api/chat', {
+                    // Fetching from Local Server running the heavy Model
+                    const res = await fetch('http://127.0.0.1:8000/chat', {
                         method: 'POST',
                         headers: {
                             "Content-Type": "application/json"
