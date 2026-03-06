@@ -76,14 +76,16 @@
             <p class="hero-subtitle">Math Solver &amp; AI Assistant</p>
 
             <div class="search-container">
-                <button class="icon-button mic-btn" title="Voice Input">
-                    <span class="material-symbols-outlined">mic</span>
-                </button>
-                <input type="text" class="search-input" placeholder="Ask me anything about math....">
-                <div class="search-actions">
-                    <button class="icon-button upload-btn" title="Upload Image">
-                        <span class="material-symbols-outlined">image</span>
-                    </button>
+                <textarea class="search-input" placeholder="Ask me anything about math...." rows="1"></textarea>
+                <div class="search-footer">
+                    <div class="search-tools">
+                        <button class="icon-button mic-btn" title="Voice Input">
+                            <span class="material-symbols-outlined">mic</span>
+                        </button>
+                        <button class="icon-button upload-btn" title="Upload Image">
+                            <span class="material-symbols-outlined">image</span>
+                        </button>
+                    </div>
                     <button class="send-btn" title="Send Request">
                         <span class="material-symbols-outlined send-icon">arrow_upward</span>
                     </button>
@@ -100,14 +102,17 @@
 
         <div class="chat-input-wrapper">
             <div class="search-container chat-mode">
-                <button class="icon-button mic-btn" title="Voice Input">
-                    <span class="material-symbols-outlined">mic</span>
-                </button>
-                <input type="text" class="search-input" id="chat-input" placeholder="Ask me anything about math....">
-                <div class="search-actions">
-                    <button class="icon-button upload-btn" title="Upload Image">
-                        <span class="material-symbols-outlined">image</span>
-                    </button>
+                <textarea class="search-input" id="chat-input" placeholder="Ask me anything about math...."
+                    rows="1"></textarea>
+                <div class="search-footer">
+                    <div class="search-tools">
+                        <button class="icon-button mic-btn" title="Voice Input">
+                            <span class="material-symbols-outlined">mic</span>
+                        </button>
+                        <button class="icon-button upload-btn" title="Upload Image">
+                            <span class="material-symbols-outlined">image</span>
+                        </button>
+                    </div>
                     <button class="send-btn" id="chat-send-btn" title="Send Request">
                         <span class="material-symbols-outlined send-icon">arrow_upward</span>
                     </button>
@@ -233,6 +238,14 @@
             const chatInput = document.getElementById('chat-input');
             const chatSendBtn = document.getElementById('chat-send-btn');
             const chatMessages = document.getElementById('chat-messages');
+
+            // Auto-resize textareas
+            function autoResize(el) {
+                el.style.height = 'auto';
+                el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+            }
+            heroInput.addEventListener('input', () => autoResize(heroInput));
+            chatInput.addEventListener('input', () => autoResize(chatInput));
 
             // Function to transition to chat
             function startChat(initialMessage) {
@@ -365,8 +378,13 @@
 
             // Event Listeners for Hero Search
             heroSendBtn.addEventListener('click', () => startChat(heroInput.value));
-            heroInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') startChat(heroInput.value);
+            heroInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    startChat(heroInput.value);
+                    heroInput.value = '';
+                    autoResize(heroInput);
+                }
             });
 
             // Event Listeners for Chat Interface Search
@@ -375,19 +393,20 @@
                 if (msg.trim()) {
                     addMessage(msg, 'user');
                     saveMessageToSupabase(msg, 'user');
-
-                    chatInput.value = ''; // clear input
+                    chatInput.value = '';
+                    autoResize(chatInput);
                     simulateAIResponse(msg);
                 }
             });
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
                     const msg = chatInput.value;
                     if (msg.trim()) {
                         addMessage(msg, 'user');
                         saveMessageToSupabase(msg, 'user');
-
-                        chatInput.value = ''; // clear input
+                        chatInput.value = '';
+                        autoResize(chatInput);
                         simulateAIResponse(msg);
                     }
                 }

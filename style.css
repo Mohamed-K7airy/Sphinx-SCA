@@ -259,7 +259,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 40px 20px;
+    padding: 20px 20px;
     text-align: center;
     transition: opacity 0.4s ease, transform 0.4s ease;
 }
@@ -294,7 +294,7 @@ body {
 
 /* Avatar added above welcome logic */
 .hero-avatar-container {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     animation: fadeInDown 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -311,8 +311,8 @@ body {
 }
 
 .hero-avatar {
-    width: 210px;
-    height: 210px;
+    width: 200px;
+    height: 200px;
     object-fit: contain;
     filter: drop-shadow(0 0 25px rgba(224, 112, 46, 0.6)) drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
     animation: float 4s ease-in-out infinite;
@@ -338,13 +338,13 @@ body {
 
 .hero-title {
     font-family: 'Etna Sans Serif', 'Arial Black', Impact, sans-serif;
-    font-size: clamp(60px, 10vw, 120px);
-    /* Slightly smaller, more elegant */
+    font-size: clamp(35px, 6vw, 75px);
+    /* Smaller, more elegant */
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 10px;
+    letter-spacing: 6px;
     /* Adjusted for new size */
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     line-height: 1;
 
     /* The core visual upgrade: A shimmering gold/orange/white gradient */
@@ -384,7 +384,7 @@ body {
     gap: 15px;
     width: 60%;
     max-width: 400px;
-    margin: 0 auto 20px;
+    margin: 0 auto 12px;
     opacity: 0.9;
     animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
     opacity: 0;
@@ -428,50 +428,95 @@ body {
 /* Professional Glassmorphism Subtitle Badge */
 .hero-subtitle {
     font-family: 'Inter', sans-serif;
-    font-size: clamp(14px, 2vw, 18px);
+    font-size: clamp(12px, 1.5vw, 16px);
     font-weight: 600;
     color: rgba(255, 255, 255, 0.95);
-    margin-top: 10px;
-    margin-bottom: 30px;
-    letter-spacing: 2.5px;
+    margin-top: 6px;
+    margin-bottom: 20px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    padding: 12px 32px;
+    padding: 10px 28px;
     border-radius: 50px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     opacity: 0;
     animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
 }
 
-/* Search Container - Glassmorphism update */
+/* Search Container — Premium Card Style */
 .search-container {
-    background-color: rgba(249, 250, 251, 0.95);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     width: 100%;
-    max-width: 800px;
-    /* Slightly narrower for elegance */
-    height: 72px;
-    border-radius: 36px;
+    max-width: 760px;
+    border-radius: 24px;
     display: flex;
-    align-items: center;
-    padding: 0 12px 0 24px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15),
-        inset 0 2px 4px rgba(255, 255, 255, 0.4);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    margin-top: 20px;
-    /* Lifted chat box slightly higher */
+    flex-direction: column;
+    padding: 18px 18px 14px 22px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.18),
+        0 2px 8px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-top: 16px;
+    position: relative;
 }
 
 .search-container:focus-within {
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2),
-        0 0 0 4px rgba(255, 255, 255, 0.2),
-        inset 0 2px 4px rgba(255, 255, 255, 0.4);
-    transform: translateY(-4px);
-    background-color: rgba(255, 255, 255, 1);
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.22),
+        0 0 0 3px rgba(255, 255, 255, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 1);
+}
+
+/* Textarea replaces plain input */
+.search-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    font-weight: 450;
+    color: var(--text-black);
+    outline: none;
+    resize: none;
+    min-height: 28px;
+    max-height: 180px;
+    line-height: 1.6;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 0;
+    display: block;
+}
+
+.search-input::-webkit-scrollbar {
+    display: none;
+}
+
+.search-input::placeholder {
+    color: #9CA3AF;
+    font-weight: 400;
+}
+
+/* Bottom row: tools left, send right */
+.search-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+}
+
+.search-tools {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .icon-button {
@@ -482,9 +527,9 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
     transition: all 0.2s ease;
     outline: none;
 }
@@ -495,47 +540,18 @@ body {
 }
 
 .icon-button:active {
-    transform: scale(0.95);
+    transform: scale(0.93);
 }
 
 .icon-button .material-symbols-outlined {
-    font-size: 26px;
-}
-
-.search-input {
-    flex: 1;
-    height: 100%;
-    border: none;
-    background: transparent;
-    padding: 0 20px;
-    font-family: 'Inter', sans-serif;
-    font-size: 17px;
-    font-weight: 500;
-    color: var(--text-black);
-    outline: none;
-}
-
-.search-input::placeholder {
-    color: #9CA3AF;
-    font-weight: 400;
-    transition: opacity 0.3s ease;
-}
-
-.search-input:focus::placeholder {
-    opacity: 0.5;
-}
-
-.search-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    font-size: 22px;
 }
 
 .send-btn {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #1A1A1A 0%, #333 100%);
+    background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
     color: var(--text-white);
     border: none;
     display: flex;
@@ -543,23 +559,23 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
     outline: none;
+    flex-shrink: 0;
 }
 
 .send-btn:hover {
     background: linear-gradient(135deg, var(--bg-orange) 0%, #C15E22 100%);
-    transform: scale(1.05) translateY(-2px);
-    box-shadow: 0 8px 20px rgba(224, 112, 46, 0.3);
+    transform: scale(1.08);
+    box-shadow: 0 6px 18px rgba(224, 112, 46, 0.45);
 }
 
 .send-btn:active {
-    transform: scale(0.95);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transform: scale(0.93);
 }
 
 .send-icon {
-    font-size: 24px !important;
+    font-size: 20px !important;
 }
 
 /* Footer */
@@ -704,18 +720,17 @@ body {
     }
 
     .search-container {
-        height: 60px;
-        padding: 0 8px 0 16px;
+        padding: 14px 14px 10px 16px;
+        border-radius: 18px;
     }
 
     .search-input {
         font-size: 15px;
-        padding: 0 10px;
     }
 
     .send-btn {
-        width: 44px;
-        height: 44px;
+        width: 36px;
+        height: 36px;
     }
 
     .footer {
@@ -750,38 +765,12 @@ body {
     }
 
     .search-container {
-        height: 54px;
-        padding: 0 8px;
-        border-radius: 27px;
-    }
-
-    .icon-button {
-        width: 36px;
-        height: 36px;
-    }
-
-    .icon-button .material-symbols-outlined {
-        font-size: 22px;
+        padding: 12px 10px 8px 14px;
+        border-radius: 16px;
     }
 
     .search-input {
-        width: calc(100% - 80px);
-        /* Leave room for buttons */
         font-size: 14px;
-        padding: 0 8px;
-    }
-
-    .search-actions {
-        gap: 4px;
-    }
-
-    .send-btn {
-        width: 36px;
-        height: 36px;
-    }
-
-    .send-icon {
-        font-size: 20px !important;
     }
 }
 
