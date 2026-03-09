@@ -390,9 +390,6 @@
             </div>
         </div>
 
-        <button class="mobile-menu-btn" id="mobile-menu-btn">
-            <span class="material-symbols-outlined">menu</span>
-        </button>
         <nav class="nav">
             <a href="index.html" class="nav-link">Home</a>
             <a href="dashboard.html" class="nav-link">Dashboard</a>
@@ -686,22 +683,6 @@
                 } catch (err) {
                     console.error("Error fetching user data:", err);
                 }
-            }
-
-            // Mobile menu toggle (Right Nav)
-            const menuBtn = document.getElementById('mobile-menu-btn');
-            const nav = document.querySelector('.nav');
-
-            if (menuBtn && nav) {
-                menuBtn.addEventListener('click', () => {
-                    nav.classList.toggle('active');
-                    const icon = menuBtn.querySelector('.material-symbols-outlined');
-                    if (nav.classList.contains('active')) {
-                        icon.textContent = 'close';
-                    } else {
-                        icon.textContent = 'menu';
-                    }
-                });
             }
 
             // Mobile left menu toggle (Sidebar)

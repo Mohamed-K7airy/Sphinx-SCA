@@ -949,65 +949,32 @@ body.app-page {
 
     /* Mobile Navigation */
     .mobile-menu-btn {
-        display: flex;
+        display: none !important;
     }
 
     .nav {
-        position: fixed;
-        top: 0;
-        right: -300px;
-        width: 280px;
-        height: 100vh;
-        background-color: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(15px);
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 90px 30px 40px;
-        gap: 25px;
-        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
-        border-bottom-left-radius: 20px;
-        border-top-left-radius: 20px;
-        border-bottom-right-radius: 0;
-        transform: translateX(0);
-        opacity: 1;
-        transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        z-index: 9;
-    }
-
-    .nav.active {
-        right: 0;
-        transform: none;
-    }
-
-    .profile-container:hover .profile-dropdown {
         position: static;
-        opacity: 1;
-        visibility: visible;
-        transform: none;
+        width: auto;
+        height: auto;
+        background-color: transparent;
+        flex-direction: row;
+        align-items: center;
+        padding: 0;
+        gap: 15px;
         box-shadow: none;
-        background: transparent;
-        border: none;
-        padding: 10px 0 0 10px;
+        transform: none;
+        border-radius: 0;
+        z-index: auto;
     }
 
-    .profile-dropdown {
-        position: static;
-        opacity: 1;
-        visibility: visible;
-        transform: none;
-        box-shadow: none;
-        background: transparent;
-        border: none;
-        padding: 10px 0 0 10px;
+    .nav>.nav-link:not(#nav-login-btn) {
         display: none;
     }
 
     .profile-container.active .profile-dropdown {
-        display: block;
-    }
-
-    .mobile-menu-btn {
-        z-index: 100;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
     }
 
     /* Hero adjustments */
