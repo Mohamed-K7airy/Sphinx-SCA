@@ -75,9 +75,11 @@ body.app-page {
     flex-shrink: 0;
 }
 
-.main-sidebar.collapsed {
-    width: 68px;
-    /* Standard collapsed width */
+@media (min-width: 769px) {
+    .main-sidebar.collapsed {
+        width: 68px;
+        /* Standard collapsed width */
+    }
 }
 
 .sidebar-top {
@@ -259,48 +261,40 @@ body.app-page {
 }
 
 /* --- COLLAPSED STATE STYLES --- */
-.main-sidebar.collapsed .new-chat-sidebar-btn {
-    padding: 12px;
-    width: 46px;
-    /* Circle shape */
-    height: 46px;
-    justify-content: center;
-    border-radius: 50%;
-    margin: 0 auto;
-}
+@media (min-width: 769px) {
+    .main-sidebar.collapsed .new-chat-sidebar-btn {
+        padding: 12px;
+        width: 46px;
+        /* Circle shape */
+        height: 46px;
+        justify-content: center;
+        border-radius: 50%;
+        margin: 0 auto;
+    }
 
-.main-sidebar.collapsed .new-chat-sidebar-btn .btn-text,
-.main-sidebar.collapsed .section-title,
-.main-sidebar.collapsed .history-text,
-.main-sidebar.collapsed .sidebar-nav-item .item-text {
-    opacity: 0;
-    width: 0;
-    display: none;
-    /* or visibility: hidden to preserve height/spacing if needed */
-}
+    .main-sidebar.collapsed .new-chat-sidebar-btn .btn-text,
+    .main-sidebar.collapsed .section-title,
+    .main-sidebar.collapsed .history-text,
+    .main-sidebar.collapsed .sidebar-nav-item .item-text {
+        opacity: 0;
+        width: 0;
+        display: none;
+        /* or visibility: hidden to preserve height/spacing if needed */
+    }
 
-.main-sidebar.collapsed .section-header {
-    justify-content: center;
-    padding: 0;
-}
+    .main-sidebar.collapsed .section-header {
+        justify-content: center;
+        padding: 0;
+    }
 
-.main-sidebar.collapsed .history-link {
-    padding: 10px;
-    justify-content: center;
-}
+    .main-sidebar.collapsed .sidebar-history-list {
+        display: none;
+    }
 
-/* If you want to show icon instead of text for collapsed history items */
-.main-sidebar.collapsed .history-link::before {
-    content: 'chat_bubble';
-    /* Material Icon ligature */
-    font-family: 'Material Symbols Outlined';
-    font-size: 18px;
-    color: var(--text-gray);
-}
-
-.main-sidebar.collapsed .sidebar-nav-item {
-    justify-content: center;
-    padding: 12px;
+    .main-sidebar.collapsed .sidebar-nav-item {
+        justify-content: center;
+        padding: 12px;
+    }
 }
 
 /* Header */
