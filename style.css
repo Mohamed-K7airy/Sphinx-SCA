@@ -61,7 +61,6 @@ body.app-page {
         url('/bg.jpg') center/cover no-repeat fixed;
     position: relative;
     /* Context for children if needed */
-    padding-bottom: 0;
 }
 
 /* --- Main Sidebar (Index Page) --- */
@@ -755,14 +754,15 @@ body.dark-theme .nav-theme-toggle:hover {
 /* Floating Wrapper for the Search Box */
 .floating-search-wrapper {
     position: relative;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 0 20px 25px 20px;
     background: transparent;
     z-index: 100;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    flex-shrink: 0;
     /* Let clicks pass through background */
 }
 
@@ -952,6 +952,7 @@ body.dark-theme .floating-search-wrapper {
 
 @media (max-width: 768px) {
     .floating-search-wrapper {
+        left: 0;
         padding: 0 15px 15px 15px;
     }
 
@@ -961,7 +962,7 @@ body.dark-theme .floating-search-wrapper {
     }
 
     .main-content-wrapper {
-        padding-bottom: 0;
+        padding-bottom: 120px;
     }
 
     .header {
@@ -1101,6 +1102,7 @@ body.dark-theme .floating-search-wrapper {
     }
 
     .floating-search-wrapper {
+        left: 0;
         padding: 0 15px 15px 15px;
     }
 
@@ -1110,7 +1112,7 @@ body.dark-theme .floating-search-wrapper {
     }
 
     .main-content-wrapper {
-        padding-bottom: 0;
+        padding-bottom: 120px;
     }
 }
 
@@ -1277,15 +1279,9 @@ body.dark-theme .floating-search-wrapper {
     max-width: 800px;
     margin: 0 auto;
     padding: 100px 20px 20px;
-    /* 100px top to clear static header, normal bottom padding */
     animation: fadeIn 0.4s ease forwards;
     overflow-y: auto;
     scrollbar-width: none;
-    /* Hide scrollbar for cleaner look */
-}
-
-.chat-interface::-webkit-scrollbar {
-    display: none;
 }
 
 .chat-messages-wrapper {
@@ -1422,10 +1418,9 @@ body.dark-theme .floating-search-wrapper {
 
 @media (max-width: 768px) {
     .chat-interface {
-        height: auto;
-        flex: 1;
-        padding: 80px 10px 10px;
-        /* Adjust for header top space */
+        height: calc(100vh - 170px);
+        /* Adjust for mobile header/footer */
+        padding: 10px;
     }
 
     .message {
