@@ -317,7 +317,7 @@ async def home():
 
 # Mount the entire root directory as static so links like /style.css work
 # MUST BE LAST to avoid shadowing other routes
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
+app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 # ─────────────────────────────────────────────
 # RUN SERVER
