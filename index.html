@@ -216,9 +216,10 @@
                             li.className = 'history-item';
                             li.innerHTML = `
                                 <a href="#" class="history-link">
-                                    <span class="history-text">${msg.content}</span>
+                                    <span class="history-text"></span>
                                 </a>
                             `;
+                            li.querySelector('.history-text').textContent = msg.content;
                             sidebarHistoryList.appendChild(li);
                         });
                     } else {
@@ -318,8 +319,10 @@
 
                 if (error) {
                     console.error('Error saving message:', error);
+                    throw error; // Throw so caller can catch or wait
                 } else {
                     console.log('Message saved successfully!');
+                    return data;
                 }
             }
 
@@ -411,13 +414,15 @@
                 if (!isChatActive) {
                     isChatActive = true;
                     heroSection.classList.add('animate-out');
-                    setTimeout(() => {
+                    setTimeout(async () => {
                         heroSection.style.display = 'none';
                         chatInterface.style.display = 'flex';
                         addMessage(msg, 'user');
+                        await saveMessageToSupabase(msg, 'user'); // Save user message
                     }, 400);
                 } else {
                     addMessage(msg, 'user');
+                    await saveMessageToSupabase(msg, 'user'); // Save user message
                 }
 
                 searchInput.value = '';
@@ -438,7 +443,8 @@
                     const result = await response.json();
                     if (result.success) {
                         addMessage(result.answer, 'ai');
-                        if (currentUserId) fetchUserData(currentUserId);
+                        await saveMessageToSupabase(result.answer, 'ai'); // Save AI response
+                        if (currentUserId) await fetchUserData(currentUserId);
                     } else {
                         addMessage("Error: " + result.error, 'ai');
                     }

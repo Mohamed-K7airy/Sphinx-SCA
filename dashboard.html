@@ -670,13 +670,13 @@
                                     </div>
                                     <div class="activity-content">
                                         <div class="activity-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">
-                                            ${msg.content}
                                         </div>
                                         <div class="activity-desc">Math Problem</div>
                                     </div>
                                     <div class="status-badge">Solved</div>
                                     <div class="activity-date">${dateStr}, ${timeStr}</div>
                                 `;
+                                li.querySelector('.activity-title').textContent = msg.content;
                                 recentActivityList.appendChild(li);
                             }
 
@@ -687,9 +687,10 @@
                                 liHistory.innerHTML = `
                                     <a href="#" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
                                         <span class="material-symbols-outlined" style="font-size: 16px;">forum</span>
-                                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${msg.content}</span>
+                                        <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
                                     </a>
                                 `;
+                                liHistory.querySelector('.history-content-text').textContent = msg.content;
                                 chatHistoryList.appendChild(liHistory);
                             }
                         });
