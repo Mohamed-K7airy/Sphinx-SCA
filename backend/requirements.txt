@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-pydantic
-sympy
-numpy
-groq
-pydantic
-python-multipart
