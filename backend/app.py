@@ -106,20 +106,6 @@ app.add_middleware(
 )
 
 # ─────────────────────────────────────────────
-# SERVE FRONTEND
-# ─────────────────────────────────────────────
-
-FRONTEND_DIR = PROJECT_ROOT
-
-@app.get("/")
-async def home():
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
-# Mount the entire root directory as static so links like /style.css work
-# But keep it after specific routes so it doesn't shadow them
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
-
-# ─────────────────────────────────────────────
 # REQUEST MODELS
 # ─────────────────────────────────────────────
 
@@ -318,6 +304,20 @@ async def health():
         "status": "ok",
         "llm_loaded": llm is not None
     }
+
+# ─────────────────────────────────────────────
+# SERVE FRONTEND
+# ─────────────────────────────────────────────
+
+FRONTEND_DIR = PROJECT_ROOT
+
+@app.get("/")
+async def home():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+# Mount the entire root directory as static so links like /style.css work
+# MUST BE LAST to avoid shadowing other routes
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 
 # ─────────────────────────────────────────────
 # RUN SERVER
