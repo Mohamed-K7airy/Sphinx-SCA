@@ -220,15 +220,14 @@
                         const sessions = [];
                         const seenSessions = new Set();
 
-                        // Extract unique sessions based on the latest message of that session
+                        // Extract unique sessions based on the latest user message of that session
                         messages.forEach(msg => {
                             if (!msg.session_id) return; // Skip legacy messages without session_id
 
+                            // Only count the session if we find a user message to use as the title
                             if (!seenSessions.has(msg.session_id)) {
-                                seenSessions.add(msg.session_id);
-                                // Prefer the first user message of the session as title, 
-                                // but for simplicity, just use the latest user message found
                                 if (msg.sender === 'user') {
+                                    seenSessions.add(msg.session_id);
                                     sessions.push(msg);
                                 }
                             }
