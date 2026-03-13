@@ -1080,28 +1080,29 @@ body.dark-theme .floating-search-wrapper {
 
     /* Hero adjustments */
     .hero-title {
-        font-size: clamp(34px, 7vw, 65px);
-        /* Proportionate scaling */
-        letter-spacing: 3px;
-        filter: drop-shadow(0px 3px 6px rgba(0, 0, 0, 0.4)) drop-shadow(0px 0px 12px rgba(224, 112, 46, 0.3));
+        font-size: clamp(40px, 8vw, 80px);
+        /* Restored original large size */
+        letter-spacing: 4px;
+        filter: drop-shadow(0px 4px 8px rgba(0, 0, 0, 0.5)) drop-shadow(0px 0px 15px rgba(224, 112, 46, 0.3));
     }
 
     .hero-avatar {
-        width: 150px;
-        /* Moderate reduction from 200px */
-        height: 150px;
+        width: 200px;
+        /* Restored original large size */
+        height: 200px;
     }
 
     .hero-subtitle {
-        padding: 8px 18px;
-        margin-bottom: 20px;
-        font-size: 12px;
+        padding: 8px 20px;
+        margin-bottom: 25px;
+        font-size: 13px;
+        /* Restored original larger subtitle */
         letter-spacing: 2px;
     }
 
     .pharaonic-line {
-        width: 75%;
-        margin-bottom: 15px;
+        width: 80%;
+        margin-bottom: 20px;
     }
 
     .search-container {
@@ -1145,18 +1146,19 @@ body.dark-theme .floating-search-wrapper {
 
 @media (max-width: 480px) {
     .hero-avatar {
-        width: 130px;
-        /* Even smaller for very small phones, but not tiny */
-        height: 130px;
+        width: 160px;
+        /* Larger size for small phones */
+        height: 160px;
     }
 
     .hero-title {
-        font-size: clamp(28px, 9vw, 42px);
+        font-size: clamp(32px, 10vw, 50px);
+        /* Restored larger mobile title */
         letter-spacing: 2px;
     }
 
     .hero-subtitle {
-        padding: 6px 14px;
+        padding: 6px 16px;
         font-size: 11px;
         letter-spacing: 1.5px;
         margin-bottom: 20px;
