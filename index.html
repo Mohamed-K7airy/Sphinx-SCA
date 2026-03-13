@@ -192,36 +192,73 @@
     <script type="module">
         import { supabase } from './supabaseClient.js';
 
-        // --- Sidebar Logic ---
+        // Function to generate a UUID for sessions
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
 
         async function fetchUserData(userId) {
             const sidebarHistoryList = document.getElementById('sidebar-history-list');
             try {
-                // Fetch user messages for history sidebar
+                // Fetch recent messages to group by session
+                // We fetch the last 100 messages to find recent unique sessions
                 const { data: messages, error } = await supabase
                     .from('messages')
                     .select('*')
                     .eq('user_id', userId)
-                    .eq('sender', 'user')
                     .order('created_at', { ascending: false })
-                    .limit(10); // get top 10 recent chats
+                    .limit(100);
 
                 if (error) throw error;
 
                 if (sidebarHistoryList) {
                     sidebarHistoryList.innerHTML = ''; // clear existing
                     if (messages && messages.length > 0) {
+                        const sessions = [];
+                        const seenSessions = new Set();
+
+                        // Extract unique sessions based on the latest message of that session
                         messages.forEach(msg => {
-                            const li = document.createElement('li');
-                            li.className = 'history-item';
-                            li.innerHTML = `
-                                <a href="#" class="history-link">
-                                    <span class="history-text"></span>
-                                </a>
-                            `;
-                            li.querySelector('.history-text').textContent = msg.content;
-                            sidebarHistoryList.appendChild(li);
+                            if (!msg.session_id) return; // Skip legacy messages without session_id
+
+                            if (!seenSessions.has(msg.session_id)) {
+                                seenSessions.add(msg.session_id);
+                                // Prefer the first user message of the session as title, 
+                                // but for simplicity, just use the latest user message found
+                                if (msg.sender === 'user') {
+                                    sessions.push(msg);
+                                }
+                            }
                         });
+
+                        // Limit to top 15 recent sessions
+                        const topSessions = sessions.slice(0, 15);
+
+                        if (topSessions.length > 0) {
+                            topSessions.forEach(sessionMsg => {
+                                const li = document.createElement('li');
+                                li.className = 'history-item';
+                                li.innerHTML = `
+                                    <a href="#" class="history-link" data-session-id="${sessionMsg.session_id}">
+                                        <span class="history-text"></span>
+                                    </a>
+                                `;
+                                li.querySelector('.history-text').textContent = sessionMsg.content;
+
+                                // Add click event to load the session
+                                li.querySelector('.history-link').addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    loadSession(sessionMsg.session_id, sessionMsg.user_id);
+                                });
+
+                                sidebarHistoryList.appendChild(li);
+                            });
+                        } else {
+                            sidebarHistoryList.innerHTML = '<li style="padding: 10px 16px; font-size: 13px; color: var(--text-gray);">No specific chats yet</li>';
+                        }
                     } else {
                         sidebarHistoryList.innerHTML = '<li style="padding: 10px 16px; font-size: 13px; color: var(--text-gray);">No chats yet</li>';
                     }
@@ -267,6 +304,7 @@
             const { data: { session } } = await supabase.auth.getSession();
 
             let currentUserId = null;
+            let currentSessionId = generateUUID(); // Start a new session by default
 
             if (session) {
                 currentUserId = session.user.id;
@@ -312,6 +350,7 @@
                     .insert([
                         {
                             user_id: currentUserId,
+                            session_id: currentSessionId,
                             content: content,
                             sender: sender
                         }
@@ -325,6 +364,58 @@
                     return data;
                 }
             }
+
+            // --- Load Session Logic ---
+            window.loadSession = async function (sessionId, userId) {
+                try {
+                    // Close sidebar on mobile
+                    const mainSidebar = document.getElementById('main-sidebar');
+                    const sidebarOverlay = document.getElementById('sidebar-overlay');
+                    if (window.innerWidth <= 768) {
+                        if (mainSidebar) mainSidebar.classList.remove('mobile-open');
+                        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                    }
+
+                    // Fetch messages
+                    const { data: messages, error } = await supabase
+                        .from('messages')
+                        .select('*')
+                        .eq('session_id', sessionId)
+                        .order('created_at', { ascending: true }); // chronological order
+
+                    if (error) throw error;
+
+                    currentSessionId = sessionId; // update active session
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.innerHTML = ''; // clear current view
+
+                    if (messages && messages.length > 0) {
+                        // Get username if available
+                        let userName = 'User';
+                        const avatarImg = document.querySelector('#nav-user-avatar img');
+                        if (avatarImg) userName = avatarImg.alt;
+
+                        messages.forEach(msg => {
+                            addMessage(msg.content, msg.sender, userName);
+                        });
+                    }
+
+                    // Show chat interface
+                    const heroSection = document.querySelector('.hero');
+                    const chatInterface = document.getElementById('chat-interface');
+                    heroSection.style.display = 'none';
+                    chatInterface.style.display = 'flex';
+                    isChatActive = true;
+
+                    // Scroll to bottom
+                    const scrollWrapper = document.getElementById('chat-interface');
+                    scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
+
+                } catch (error) {
+                    console.error('Error loading session:', error);
+                    alert('Could not load chat history.');
+                }
+            };
 
             // --- Profile dropdown & Theme logic ---
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
@@ -439,13 +530,27 @@
                     sendBtn.disabled = true;
                     sendBtnIcon.textContent = 'pending'; // visually indicate loading
 
+                    // Build history array from current loaded messages
+                    const historyForBackend = [];
+                    const messageElements = chatMessages.querySelectorAll('.message');
+                    // Add all messages EXCEPT the very last one we just added (the current question)
+                    for (let i = 0; i < messageElements.length - 1; i++) {
+                        const el = messageElements[i];
+                        const isUser = el.classList.contains('user-message');
+                        const text = el.querySelector('p').textContent;
+                        historyForBackend.push({
+                            role: isUser ? "user" : "assistant",
+                            content: text
+                        });
+                    }
+
                     const response = await fetch(`${API_URL}/solve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             question: msg,
                             user_id: currentUserId,
-                            history: []
+                            history: historyForBackend
                         })
                     });
 
