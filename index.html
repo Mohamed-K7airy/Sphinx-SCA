@@ -430,7 +430,7 @@
 
                 // 2. Connect to Flask Backend (app.py)
                 try {
-                    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+                    const API_URL = "https://sphinx-gpt-beta-production.up.railway.app";
                     const response = await fetch(`${API_URL}/solve`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
