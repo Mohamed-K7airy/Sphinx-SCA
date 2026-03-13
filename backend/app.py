@@ -315,9 +315,41 @@ FRONTEND_DIR = PROJECT_ROOT
 async def home():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# Mount the entire root directory as static so links like /style.css work
-# MUST BE LAST to avoid shadowing other routes
-app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="static")
+@app.get("/index.html")
+async def index():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/dashboard.html")
+async def dashboard():
+    return FileResponse(os.path.join(FRONTEND_DIR, "dashboard.html"))
+
+@app.get("/login.html")
+async def login():
+    return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
+
+@app.get("/signup.html")
+async def signup():
+    return FileResponse(os.path.join(FRONTEND_DIR, "signup.html"))
+
+@app.get("/style.css")
+async def style():
+    return FileResponse(os.path.join(FRONTEND_DIR, "style.css"))
+
+@app.get("/logo.png")
+async def logo():
+    return FileResponse(os.path.join(FRONTEND_DIR, "logo.png"))
+
+@app.get("/user.png")
+async def user_img():
+    return FileResponse(os.path.join(FRONTEND_DIR, "user.png"))
+
+@app.get("/bg.jpg")
+async def bg():
+    return FileResponse(os.path.join(FRONTEND_DIR, "bg.jpg"))
+
+@app.get("/supabaseClient.js")
+async def supabase_client():
+    return FileResponse(os.path.join(FRONTEND_DIR, "supabaseClient.js"))
 
 # ─────────────────────────────────────────────
 # RUN SERVER

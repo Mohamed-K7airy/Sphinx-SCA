@@ -441,8 +441,8 @@
                         !API_URL.startsWith("http");
 
                     if (isLocal) {
-                        // FIXED TYPO: added -d54e to the subdomain
-                        API_URL = "https://sphinx-gpt-beta-production-d54e.up.railway.app";
+                        // Correct Railway production URL
+                        API_URL = "https://sphinx-gpt-beta-production.up.railway.app";
                         console.log("🛠️ Local environment detected. Routing to PRODUCTION backend:", API_URL);
                     } else {
                         console.log("🌐 Production environment detected. Using relative routing:", API_URL);
