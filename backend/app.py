@@ -95,12 +95,18 @@ except ImportError:
 # ─────────────────────────────────────────────
 
 app = FastAPI(title="Sphinx-SCA API", version="3.0.0")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# الصفحة الرئيسية
+@app.get("/")
+async def home():
+    return {"message": "Sphinx API is running"}
 
 # ─────────────────────────────────────────────
 #  SERVE FRONTEND
