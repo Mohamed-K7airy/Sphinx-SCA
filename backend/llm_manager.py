@@ -29,7 +29,17 @@ import os
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = "moonshotai/kimi-k2-instruct"
 
-client = Groq(api_key=GROQ_API_KEY)
+# We initialize the client only if the API KEY is present.
+# This prevents a crash during module import on platforms like Railway
+# if the environment variable is not yet set.
+client = None
+if GROQ_API_KEY:
+    try:
+        client = Groq(api_key=GROQ_API_KEY)
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Groq client: {e}")
+else:
+    print("⚠️ GROQ_API_KEY not found in environment variables")
 
 # ── System prompt — شخصية المساعد ──────────────
 SYSTEM_PROMPT = """You are Sphinx-SCA, a friendly and smart AI math assistant.
@@ -65,6 +75,8 @@ If the user writes in English, respond in English.
 
 def _call_llm(prompt: str, temperature: float = 0.0) -> str:
     """Send prompt to Groq and return response text."""
+    if client is None:
+        raise RuntimeError("Groq client not initialized. Please check your GROQ_API_KEY.")
     try:
         response = client.chat.completions.create(
             model=GROQ_MODEL,
@@ -81,6 +93,8 @@ def _call_llm(prompt: str, temperature: float = 0.0) -> str:
 
 def _call_chat(messages: list, temperature: float = 0.7) -> str:
     """Send full conversation history to Groq with system prompt."""
+    if client is None:
+        raise RuntimeError("Groq client not initialized. Please check your GROQ_API_KEY.")
     try:
         full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
         response = client.chat.completions.create(
