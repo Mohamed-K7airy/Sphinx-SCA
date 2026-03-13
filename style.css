@@ -1056,56 +1056,55 @@ body.dark-theme .floating-search-wrapper {
     }
 
     /* Hero adjustments */
-    .hero {
-        padding: 5px 15px;
-        /* Less padding to shift everything up */
+    .hero-title {
+        font-size: clamp(34px, 7vw, 65px);
+        /* Proportionate scaling */
+        letter-spacing: 3px;
+        filter: drop-shadow(0px 3px 6px rgba(0, 0, 0, 0.4)) drop-shadow(0px 0px 12px rgba(224, 112, 46, 0.3));
     }
 
     .hero-avatar {
-        width: 120px;
-        /* Reduced from default 200px */
-        height: 120px;
-    }
-
-    .hero-title {
-        font-size: clamp(28px, 6vw, 45px);
-        /* Much smaller, more professional */
-        letter-spacing: 2px;
-        filter: drop-shadow(0px 3px 6px rgba(0, 0, 0, 0.4)) drop-shadow(0px 0px 10px rgba(224, 112, 46, 0.3));
+        width: 150px;
+        /* Moderate reduction from 200px */
+        height: 150px;
     }
 
     .hero-subtitle {
-        padding: 6px 16px;
+        padding: 8px 18px;
         margin-bottom: 20px;
-        font-size: 11px;
-        letter-spacing: 1.5px;
+        font-size: 12px;
+        letter-spacing: 2px;
     }
 
     .pharaonic-line {
-        width: 70%;
-        margin-bottom: 8px;
+        width: 75%;
+        margin-bottom: 15px;
     }
 
-    /* Refined Input Box for Mobile (768px) */
     .search-container {
-        padding: 10px 12px 8px 14px;
-        border-radius: 16px;
+        padding: 12px 14px 10px 14px;
+        border-radius: 18px;
     }
 
     .search-input {
-        font-size: 14px;
-        min-height: 22px;
+        font-size: 15px;
+        /* Comfortable mobile typing */
     }
 
     .send-btn {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
     }
 
-    .send-icon {
-        font-size: 16px !important;
+    .icon-button {
+        width: 34px;
+        height: 34px;
     }
 
+    .send-icon,
+    .icon-button .material-symbols-outlined {
+        font-size: 18px !important;
+    }
 
     .footer {
         flex-direction: column;
@@ -1136,69 +1135,38 @@ body.dark-theme .floating-search-wrapper {
 }
 
 @media (max-width: 480px) {
-
-    /* Extreme Mobile Optims */
     .hero-avatar {
-        width: 100px;
-        height: 100px;
+        width: 130px;
+        /* Even smaller for very small phones, but not tiny */
+        height: 130px;
     }
 
     .hero-title {
-        font-size: clamp(24px, 8vw, 36px);
-        letter-spacing: 1.5px;
+        font-size: clamp(28px, 9vw, 42px);
+        letter-spacing: 2px;
     }
 
     .hero-subtitle {
-        padding: 5px 12px;
-        font-size: 10px;
-        letter-spacing: 1px;
-        margin-bottom: 15px;
+        padding: 6px 14px;
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        margin-bottom: 20px;
     }
 
     .pharaonic-line {
-        gap: 6px;
+        gap: 8px;
+        width: 85%;
     }
 
-    /* Tiny, clean input box */
     .search-container {
-        padding: 8px 10px 6px 10px;
-        border-radius: 14px;
+        padding: 10px 12px 8px 12px;
+        border-radius: 16px;
         margin-top: 5px;
     }
 
     .search-input {
-        font-size: 13px;
-        min-height: 20px;
-    }
-
-    .icon-button {
-        width: 32px;
-        height: 32px;
-    }
-
-    .icon-button .material-symbols-outlined {
-        font-size: 18px;
-    }
-
-    /* Ultra-compact chat bubbles */
-    .message-content {
-        padding: 12px 16px;
         font-size: 14px;
-    }
-
-    .ai-message .message-content {
-        font-size: 15px;
-        /* Slightly larger for AI bolded text */
-    }
-
-    .message-avatar {
-        width: 28px;
-        height: 28px;
-    }
-
-    .message-avatar img {
-        width: 18px;
-        height: 18px;
+        min-height: 22px;
     }
 }
 
@@ -1475,34 +1443,33 @@ body.dark-theme .floating-search-wrapper {
 
 @media (max-width: 768px) {
     .chat-interface {
-        height: calc(100vh - 150px);
-        padding: 5px 10px;
-        /* Reduced vertical padding */
+        height: calc(100vh - 160px);
+        padding: 15px 12px;
+        /* Slight breathing room */
     }
 
     .message {
-        max-width: 90%;
-        /* Let it breathe a bit more instead of hugging the edge */
-        gap: 10px;
-        /* Less space between avatar and bubble */
+        max-width: 92%;
+        /* Organized, but not touching screen edges */
+        gap: 12px;
     }
 
     .message-content {
         padding: 14px 18px;
-        /* Tighter padding inside bubbles */
-        font-size: 14px;
-        /* Default chat font size on mobile */
+        font-size: 15px;
+        /* Highly legible, native feel */
         line-height: 1.5;
     }
 
     .ai-message .message-content {
-        font-size: 15px;
-        /* Still smaller than desktop's 18px */
+        font-size: 16px;
+        /* Slightly larger for emphasis formatting */
     }
 
     .message-avatar {
-        width: 32px;
-        height: 32px;
+        width: 30px;
+        /* Refined profile pic size in chat */
+        height: 30px;
     }
 
     .message-avatar img {
@@ -1510,18 +1477,13 @@ body.dark-theme .floating-search-wrapper {
         height: 20px;
     }
 
-    .chat-messages {
-        gap: 16px;
-        /* Less space between consecutive messages */
-    }
-
     .chat-input-wrapper {
-        bottom: 10px;
-        padding: 0 10px;
+        bottom: 12px;
+        padding: 0 12px;
     }
 
     .search-container.chat-mode {
-        border-radius: 20px;
+        border-radius: 18px;
     }
 }
 
