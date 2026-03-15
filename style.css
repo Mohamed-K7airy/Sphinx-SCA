@@ -19,17 +19,19 @@
 }
 
 body.dark-theme {
-    --bg-light: #0F172A;
+    --bg-light: #0D1117;
     --text-main: #F4F4F5;
     --text-gray: #94A3B8;
     --ai-name: #E0702E;
-    --ai-text: #F4F4F5;
+    --ai-text: #E0702E; /* Make all AI text orange in dark mode */
     --user-msg-bg: rgba(255, 255, 255, 0.1);
     --user-msg-text: #FFFFFF;
     --dropdown-bg: rgba(15, 23, 42, 0.98);
     --ui-btn-bg: rgba(255, 255, 255, 0.06);
     --ui-btn-border: rgba(255, 255, 255, 0.1);
     --ui-element-color: #E2E8F0;
+    /* Midnight Orange Gradient for Dark Mode */
+    background: linear-gradient(135deg, #1C0F0A 0%, #0D0502 100%) fixed !important;
 }
 
 * {
@@ -44,16 +46,16 @@ html {
 
 body {
     font-family: 'Inter', -apple-system, sans-serif;
-    color: var(--text-black);
+    color: var(--text-main);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
-    /* Deeper, more sophisticated overlay */
-    background:
-        linear-gradient(135deg, rgba(224, 112, 46, 0.92) 0%, rgba(193, 86, 28, 0.85) 100%),
-        url('/bg.jpg') center/cover no-repeat fixed;
+    /* Sophisticated, Calmer Sunset Gradient */
+    background: linear-gradient(135deg, #fff5f0 0%, #fceae0 100%) fixed;
+    transition: background 0.3s ease;
 }
+
 
 /* App Layout for Index Page (Gemini-style Sidebar) */
 body.app-page {
@@ -78,9 +80,7 @@ body.app-page {
     min-width: 0;
     /* Important for flex child truncation */
     height: 100vh;
-    background:
-        linear-gradient(135deg, rgba(224, 112, 46, 0.92) 0%, rgba(193, 86, 28, 0.85) 100%),
-        url('/bg.jpg') center/cover no-repeat fixed;
+    background: linear-gradient(135deg, #E0702E 0%, #C1561C 100%) fixed;
     position: relative;
     /* Context for children if needed */
 }
@@ -1335,12 +1335,31 @@ body.dark-theme .floating-search-wrapper {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 800px;
+    max-width: 900px;
     margin: 0 auto;
-    padding: 100px 20px 20px;
-    animation: fadeIn 0.4s ease forwards;
+    padding: 100px 20px 140px;
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     overflow-y: auto;
     scrollbar-width: none;
+    position: relative;
+    z-index: 1;
+}
+
+.dark-theme .chat-glass-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .chat-messages-wrapper {
@@ -1351,24 +1370,38 @@ body.dark-theme .floating-search-wrapper {
 .chat-messages {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 40px;
+    /* Better separation */
 }
 
 .message {
-    display: grid;
-    grid-template-columns: 40px 1fr;
-    gap: 16px;
-    max-width: 90%;
-    animation: fadeIn 0.4s ease forwards;
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    /* Use full width for text-based flow */
+    animation: messageEntry 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes messageEntry {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .user-message {
+    justify-content: flex-end;
     align-self: flex-end;
-    grid-template-columns: 1fr 40px;
-    text-align: right;
 }
 
 .ai-message {
+    justify-content: flex-start;
     align-self: flex-start;
 }
 
@@ -1393,24 +1426,29 @@ body.dark-theme .floating-search-wrapper {
 
 .message-content {
     font-size: 16px;
-    line-height: 1.7;
+    line-height: 1.6;
     font-family: 'Inter', sans-serif;
     color: var(--ai-text);
+    /* Subtle text shadow for "pop" on vibrant backgrounds */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .user-message .message-content {
     background: var(--user-msg-bg);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    padding: 12px 20px;
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(25px);
+    /* Stronger premium blur */
+    -webkit-backdrop-filter: blur(25px);
+    padding: 14px 24px;
+    border-radius: 20px 4px 20px 20px;
+    /* Asymmetric "Gemini" style */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Sophisticated border */
     color: var(--user-msg-text);
     display: inline-block;
-    max-width: fit-content;
-    margin-left: auto;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    max-width: 85%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
+
 
 .ai-message .message-content {
     background: transparent !important;
@@ -1420,6 +1458,36 @@ body.dark-theme .floating-search-wrapper {
 .text-body {
     white-space: pre-wrap;
     word-break: break-word;
+    font-size: 16px; /* Slightly larger */
+    font-weight: 500; /* Medium weight for better clarity on orange */
+    letter-spacing: -0.01em; /* Tighter for professional feel */
+}
+
+.inline-code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    color: var(--bg-orange);
+}
+
+.dark-theme .inline-code {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.code-block {
+    background: #1e1e1e;
+    color: #dcdcdc;
+    padding: 16px;
+    border-radius: 12px;
+    margin: 12px 0;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .error-message .text-body {
@@ -1434,20 +1502,27 @@ body.dark-theme .floating-search-wrapper {
 }
 
 .ai-name {
-    font-size: 13px;
-    font-weight: 800;
+    font-size: 12px;
+    font-weight: 800; /* Extra bold for professional "brand" look */
     text-transform: uppercase;
-    letter-spacing: 0.8px;
+    letter-spacing: 0.08em; /* Slightly more tracked out */
     color: var(--ai-name);
-    margin-bottom: 6px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    margin-bottom: 8px;
+    /* More breathing room */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    opacity: 0.95; /* More visible */
 }
 
-/* Specific styling for the AI label response (bolding) */
 .ai-message .message-content strong {
     font-weight: 800;
     letter-spacing: 0.5px;
-    color: var(--bg-orange);
+    color: #FFFFFF; /* High contrast on orange bg */
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dark-theme .ai-message .message-content strong {
+    color: #E0702E; /* Signature orange on dark bg */
+    text-shadow: none;
 }
 
 /* Typing Indicator */
@@ -1459,7 +1534,7 @@ body.dark-theme .floating-search-wrapper {
 }
 
 .typing-indicator p {
-    color: var(--text-gray);
+    color: rgba(255, 255, 255, 0.9);
     font-size: 14px;
     font-weight: 500;
     margin: 0;
@@ -1963,7 +2038,8 @@ body.light-theme .stat-label {
 
 /* Lanyard and Floating Animation Styles */
 .id-badge-container {
-    padding-top: 60px; /* Space for the lanyard strap */
+    padding-top: 60px;
+    /* Space for the lanyard strap */
     animation: floating-badge 6s ease-in-out infinite;
 }
 
@@ -1981,7 +2057,7 @@ body.light-theme .stat-label {
     height: 120px;
     background: linear-gradient(to right, #e0e0e0, #ffffff 50%, #e0e0e0);
     border-radius: 4px;
-    box-shadow: inset 0 0 5px rgba(0,0,0,0.1), 2px 2px 5px rgba(0,0,0,0.2);
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1), 2px 2px 5px rgba(0, 0, 0, 0.2);
     z-index: 1;
 }
 
@@ -1993,7 +2069,7 @@ body.light-theme .stat-label {
     background: #333;
     border-radius: 3px;
     z-index: 3;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .lanyard-clip::after {
@@ -2021,12 +2097,16 @@ body.light-theme .stat-label {
 }
 
 @keyframes floating-badge {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0) rotate(0deg);
     }
+
     33% {
         transform: translateY(-8px) rotate(1deg);
     }
+
     66% {
         transform: translateY(-4px) rotate(-1deg);
     }
@@ -2126,8 +2206,15 @@ body.light-theme .stat-label {
 }
 
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mode-option {

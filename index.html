@@ -565,7 +565,16 @@
                 const scrollWrapper = document.getElementById('chat-interface');
                 scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
 
-                return msgDiv; // Return the created element
+                // Apply initial formatting if text is present
+                if (text && sender === 'ai') {
+                    const body = msgDiv.querySelector('.text-body');
+                    if (body) body.innerHTML = formatMessage(text);
+                } else if (text && sender === 'user') {
+                    const body = msgDiv.querySelector('.text-body');
+                    if (body) body.textContent = text; // User text doesn't need markdown-lite
+                }
+
+                return msgDiv;
             }
 
             async function handleSend() {
@@ -590,12 +599,36 @@
                 searchInput.value = '';
                 autoResize(searchInput);
 
-                // 2. Connect to Backend (Streaming)
+                // --- Professional Markdown-lite Formatter ---
+                function formatMessage(text) {
+                    if (!text) return "";
+                    // Basic bold
+                    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    // Basic italic
+                    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    // Inline code
+                    text = text.replace(/`(.*?)`/g, '<code class="inline-code">$1</code>');
+                    // Block code (simplified)
+                    text = text.replace(/```([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>');
+                    // Line breaks
+                    text = text.replace(/\n/g, '<br>');
+                    return text;
+                }
+
+                // 2. Connect to Backend (Smart Fallback)
                 try {
                     const origin = window.location.origin;
-                    const API_URL = (origin.includes('localhost') || origin.includes('127.0.0.1'))
-                        ? "http://localhost:8000"
-                        : ""; // Use relative paths for production
+                    let API_URL = "https://sphinx-gpt-beta-production.up.railway.app"; // Default to production
+                    
+                    // If on localhost, try local first
+                    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+                        try {
+                            const testLocal = await fetch("http://localhost:8000/health", { mode: 'no-cors' });
+                            API_URL = "http://localhost:8000";
+                        } catch (e) {
+                            console.log("Local backend not found, using production fallback.");
+                        }
+                    }
 
                     const sendBtnIcon = sendBtn.querySelector('.send-icon');
                     sendBtn.disabled = true;
@@ -618,7 +651,7 @@
 
                     // Create AI message placeholder
                     const aiMsgDiv = addMessage("", 'ai');
-                    const aiTextP = aiMsgDiv.querySelector('.message-content p');
+                    const aiTextDiv = aiMsgDiv.querySelector('.text-body');
                     let fullAiResponse = "";
 
                     const response = await fetch(`${API_URL}/solve_stream`, {
@@ -654,7 +687,7 @@
                                     const data = JSON.parse(dataStr);
                                     if (data.content) {
                                         fullAiResponse += data.content;
-                                        aiTextP.textContent = fullAiResponse;
+                                        aiTextDiv.innerHTML = formatMessage(fullAiResponse); // Use innerHTML for markdown-lite
                                         
                                         // Auto-scroll while streaming
                                         const scrollWrapper = document.getElementById('chat-interface');
