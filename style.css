@@ -4,10 +4,26 @@
 :root {
     --bg-orange: #E0702E;
     --bg-light: #E6E3DA;
-    --text-black: #111827;
+    --text-main: #FFFFFF;
     --text-white: #FFFFFF;
-    --text-gray: #4B5563;
+    --text-gray: #D1D5DB;
+    --ai-name: #FFFFFF;
+    --ai-text: #FFFFFF;
+    --user-msg-bg: rgba(0, 0, 0, 0.6);
+    --user-msg-text: #FFFFFF;
+    --dropdown-bg: rgba(255, 255, 255, 0.95);
     --hover-dark: #D4CDBC;
+}
+
+body.dark-theme {
+    --bg-light: #0F172A;
+    --text-main: #F4F4F5;
+    --text-gray: #94A3B8;
+    --ai-name: #E0702E;
+    --ai-text: #F4F4F5;
+    --user-msg-bg: rgba(255, 255, 255, 0.1);
+    --user-msg-text: #FFFFFF;
+    --dropdown-bg: rgba(15, 23, 42, 0.98);
 }
 
 * {
@@ -1328,19 +1344,21 @@ body.dark-theme .floating-search-wrapper {
 .chat-messages {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 32px;
 }
 
 .message {
-    display: flex;
+    display: grid;
+    grid-template-columns: 40px 1fr;
     gap: 16px;
-    max-width: 85%;
-    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    max-width: 90%;
+    animation: fadeIn 0.4s ease forwards;
 }
 
 .user-message {
     align-self: flex-end;
-    flex-direction: row-reverse;
+    grid-template-columns: 1fr 40px;
+    text-align: right;
 }
 
 .ai-message {
@@ -1350,22 +1368,16 @@ body.dark-theme .floating-search-wrapper {
 .message-avatar {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    background: var(--text-white);
+    border-radius: 10px;
+    background: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     flex-shrink: 0;
+    overflow: hidden;
 }
 
-.message-avatar img {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-}
-
-/* Replaced duplicate search-container with message-avatar styling */
 .message-avatar img {
     width: 24px;
     height: 24px;
@@ -1373,53 +1385,61 @@ body.dark-theme .floating-search-wrapper {
 }
 
 .message-content {
-    padding: 18px 24px;
-    border-radius: 24px;
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.7;
     font-family: 'Inter', sans-serif;
-    font-weight: 500;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    max-width: 100%;
-    word-wrap: break-word;
-}
-
-.message-content:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    color: var(--ai-text);
 }
 
 .user-message .message-content {
-    background: linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%);
-    color: #FFFFFF;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom-right-radius: 6px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    background: var(--user-msg-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 12px 20px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--user-msg-text);
+    display: inline-block;
+    max-width: fit-content;
+    margin-left: auto;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .ai-message .message-content {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    color: var(--text-black);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    border-bottom-left-radius: 6px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), inset 0 2px 4px rgba(255, 255, 255, 0.5);
-    /* For Math Subject Labels coming from model */
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--bg-orange);
+    background: transparent !important;
+    padding-top: 2px;
+}
+
+.text-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.error-message .text-body {
+    color: #ef4444;
+    font-size: 14px;
+    font-weight: 600;
+    font-style: italic;
+    background: rgba(239, 68, 68, 0.05);
+    padding: 8px 12px;
+    border-radius: 8px;
+    border-left: 3px solid #ef4444;
+}
+
+.ai-name {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--ai-name);
+    margin-bottom: 6px;
 }
 
 /* Specific styling for the AI label response (bolding) */
 .ai-message .message-content strong {
     font-weight: 800;
     letter-spacing: 0.5px;
-    background: linear-gradient(90deg, var(--bg-orange), #ff8f4d);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--bg-orange);
 }
 
 /* Typing Indicator */
@@ -2068,24 +2088,19 @@ body.light-theme .stat-label {
     bottom: calc(100% + 12px);
     right: 0;
     min-width: 180px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--dropdown-bg);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 8px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
     display: none;
     flex-direction: column;
     z-index: 1000;
     transform-origin: bottom right;
 }
 
-body.dark-theme .mode-dropdown-menu {
-    background: rgba(31, 41, 55, 0.9);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-}
 
 .mode-dropdown-menu.active {
     display: flex;

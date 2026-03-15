@@ -533,9 +533,10 @@
             searchInput.addEventListener('input', () => autoResize(searchInput));
 
             // Function to add a message bubble
-            function addMessage(text, sender, userName = 'User') {
+            function addMessage(text, sender, userName = 'User', isError = false) {
                 const msgDiv = document.createElement('div');
                 msgDiv.classList.add('message', `${sender}-message`);
+                if (isError) msgDiv.classList.add('error-message');
 
                 if (sender === 'ai') {
                     msgDiv.innerHTML = `
@@ -543,7 +544,8 @@
                             <img src="logo.png" alt="AI">
                         </div>
                         <div class="message-content">
-                            <p>${text}</p>
+                            <div class="ai-name">Sphinx-SCA</div>
+                            <div class="text-body">${text}</div>
                         </div>
                     `;
                 } else {
