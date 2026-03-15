@@ -15,7 +15,6 @@ Requirements:
 """
 
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
 import json
 import re
 from groq import Groq
@@ -569,6 +568,10 @@ class LLMManager:
     def chat_with_math(self, message: str, math_result: dict, history: list = None) -> str:
         """Wrap math solution in natural friendly response."""
         return chat_with_math(message, math_result, history)
+
+    def stream_chat(self, messages: list, temperature: float = 0.7):
+        """Stream conversation history from Groq."""
+        return stream_chat(messages, temperature)
 
 
 # ─────────────────────────────────────────────

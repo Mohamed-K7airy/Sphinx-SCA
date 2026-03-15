@@ -41,8 +41,11 @@ else:
 
 try:
     from backend.llm_manager import LLMManager
-except:
-    from backend.llm_manager import LLMManager
+except ImportError:
+    try:
+        from llm_manager import LLMManager
+    except ImportError:
+        LLMManager = None
 
 try:
     llm = LLMManager()
@@ -90,6 +93,8 @@ try:
     linear_algebra_solve = linear_algebra.solve
 except:
     linear_algebra_solve = None
+
+print(f"📦 Engines Loaded: Algebra={algebra_solve is not None}, Calculus={calculus_solve is not None}, Geometry={geometry_solve is not None}")
 
 # ─────────────────────────────────────────────
 # FASTAPI APP
@@ -302,8 +307,9 @@ async def solve_stream(req: QuestionRequest):
     messages = []
     if req.history:
         for m in req.history:
-            role = "user" if m.sender == "user" else "assistant"
-            messages.append({"role": role, "content": m.content})
+            # Handle both 'sender' and 'role' for compatibility
+            role = m.get('role') or ("user" if m.get("sender") == "user" else "assistant")
+            messages.append({"role": role, "content": m.get("content", "")})
     
     # Add current question
     prompt = req.question
