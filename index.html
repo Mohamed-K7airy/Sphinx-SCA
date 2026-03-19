@@ -64,7 +64,7 @@
             </div>
 
             <div class="sidebar-bottom">
-                <a href="index.html" class="sidebar-nav-item">
+                <a href="index.html" class="sidebar-nav-item active">
                     <span class="material-symbols-outlined">home</span>
                     <span class="item-text">Home</span>
                 </a>
@@ -72,12 +72,10 @@
                     <span class="material-symbols-outlined">dashboard</span>
                     <span class="item-text">Dashboard</span>
                 </a>
-                <!-- Temporarily hidden per user request
                 <a href="about.html" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">info</span>
                     <span class="item-text">About Us</span>
                 </a>
-                -->
                 <a href="#" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">settings</span>
                     <span class="item-text">Settings</span>
@@ -159,6 +157,10 @@
             <!-- Floating Unified Search Container -->
             <div class="floating-search-wrapper" id="floating-search-wrapper">
                 <div class="search-container">
+                    <div class="image-preview-wrapper" id="image-preview-wrapper">
+                        <img src="" alt="Preview" class="image-preview-thumbnail" id="image-preview-thumbnail">
+                        <button class="remove-preview-btn" id="remove-preview-btn">×</button>
+                    </div>
                     <textarea class="search-input" id="main-search-input" placeholder="Ask me anything about math...."
                         rows="1"></textarea>
                     <div class="search-footer">
@@ -166,7 +168,8 @@
                             <button class="icon-button mic-btn" title="Voice Input">
                                 <span class="material-symbols-outlined">mic</span>
                             </button>
-                            <button class="icon-button upload-btn" title="Upload Image">
+                            <input type="file" id="image-upload-input" accept="image/*" style="display:none">
+                            <button class="icon-button upload-btn" id="upload-btn-main" title="Upload Image">
                                 <span class="material-symbols-outlined">image</span>
                             </button>
                         </div>
@@ -551,10 +554,11 @@
             }
 
             // Function to add a message bubble
-            function addMessage(text, sender, userName = 'User', isError = false) {
+            function addMessage(text, sender, imageUrl = null, isError = false) {
                 const msgDiv = document.createElement('div');
                 msgDiv.classList.add('message', `${sender}-message`);
                 if (isError) msgDiv.classList.add('error-message');
+                if (imageUrl) msgDiv.classList.add('has-image');
 
                 if (sender === 'ai') {
                     msgDiv.innerHTML = `
@@ -563,13 +567,15 @@
                         </div>
                         <div class="message-content">
                             <div class="ai-name">Sphinx-SCA</div>
-                            <div class="text-body">${text}</div>
+                            <div class="text-body">${text || ''}</div>
                         </div>
                     `;
                 } else {
+                    const userName = document.querySelector('#nav-user-avatar img')?.alt || 'User';
                     msgDiv.innerHTML = `
                         <div class="message-content">
-                            <div class="text-body">${text}</div>
+                            ${imageUrl ? `<img src="${imageUrl}" class="message-image" onclick="window.open('${imageUrl}', '_blank')">` : ''}
+                            ${text ? `<div class="text-body">${text}</div>` : ''}
                         </div>
                         <div class="message-avatar">
                             <img src="user.png" alt="${userName}">
@@ -578,77 +584,140 @@
                 }
 
                 chatMessages.appendChild(msgDiv);
-                
+
                 // Auto-scroll the chat
                 const scrollWrapper = document.getElementById('chat-interface');
                 scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
 
-                // Apply initial formatting if text is present
-                if (text && sender === 'ai') {
-                    const body = msgDiv.querySelector('.text-body');
-                    if (body) body.innerHTML = formatMessage(text);
-                } else if (text && sender === 'user') {
-                    const body = msgDiv.querySelector('.text-body');
-                    if (body) body.textContent = text; // User text doesn't need markdown-lite
+                const body = msgDiv.querySelector('.text-body');
+                if (text && sender === 'ai' && body) {
+                    body.innerHTML = formatMessage(text);
+                } else if (text && sender === 'user' && body) {
+                    body.textContent = text;
                 }
 
                 return msgDiv;
             }
 
+            // --- Image Preview Logic ---
+            let selectedImageFile = null;
+            const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+            const imagePreviewThumbnail = document.getElementById('image-preview-thumbnail');
+            const previewFilename = document.getElementById('preview-filename');
+            const removePreviewBtn = document.getElementById('remove-preview-btn');
+
+            function showImagePreview(file) {
+                selectedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreviewThumbnail.src = e.target.result;
+                    imagePreviewWrapper.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function removeImagePreview() {
+                selectedImageFile = null;
+                imagePreviewWrapper.style.display = 'none';
+                imagePreviewThumbnail.src = '';
+                document.getElementById('image-upload-input').value = '';
+            }
+
+            if (removePreviewBtn) {
+                removePreviewBtn.addEventListener('click', removeImagePreview);
+            }
+
             async function handleSend() {
                 const msg = searchInput.value;
-                if (!msg.trim()) return;
+                if (!msg.trim() && !selectedImageFile) return;
 
-                // 1. Add User Message immediately to ensure correct chronology
-                addMessage(msg, 'user');
-                await saveMessageToSupabase(msg, 'user');
+                let finalMsg = msg || "Solve this math problem from the image.";
+                let attachedImageUrl = null;
 
+                // Capture local preview URL for immediate display in chat if Supabase fails or takes time
+                if (selectedImageFile) {
+                    attachedImageUrl = imagePreviewThumbnail.src;
+                }
+
+                // 1. UI Transition
                 if (!isChatActive) {
                     isChatActive = true;
                     heroSection.classList.add('animate-out');
-                    // Small delay for animation before layout switch
                     await new Promise(resolve => setTimeout(resolve, 400));
                     heroSection.style.display = 'none';
                     chatInterface.style.display = 'flex';
                 }
 
+                const sendBtnIcon = sendBtn.querySelector('.send-icon');
+                sendBtn.disabled = true;
+                sendBtnIcon.textContent = 'pending';
+
+                // 2. OCR Detection if image present
+                if (selectedImageFile) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', selectedImageFile);
+                        if (currentUserId) formData.append('user_id', currentUserId);
+
+                        const origin = window.location.origin;
+                        let OCR_URL = "https://sphinx-gpt-beta-production.up.railway.app/ocr";
+                        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+                            OCR_URL = "http://localhost:8000/ocr";
+                        }
+
+                        const ocrResponse = await fetch(OCR_URL, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const ocrResult = await ocrResponse.json();
+
+                        if (ocrResult.success) {
+                            finalMsg = ocrResult.raw_text || finalMsg;
+                            // Update to Supabase public URL for persistence
+                            if (ocrResult.image_url) {
+                                attachedImageUrl = ocrResult.image_url;
+                            }
+                        } else {
+                            // Don't error out, still try to solve if user message exists
+                            console.warn("OCR failed:", ocrResult.error);
+                        }
+                    } catch (err) {
+                        console.error("OCR Error:", err);
+                    }
+                }
+
+                // 3. Add User Message (Using blob URL first or Supabase URL if ready)
+                addMessage(msg, 'user', attachedImageUrl);
+                await saveMessageToSupabase(msg || "📷 Image Message", 'user');
+
+                // Clear input and preview
                 searchInput.value = '';
                 autoResize(searchInput);
+                removeImagePreview();
 
-
-                // 2. Connect to Backend (Smart Fallback)
+                // 4. Connect to Backend for Solving
                 try {
                     const origin = window.location.origin;
-                    let API_URL = "https://sphinx-gpt-beta-production.up.railway.app"; // Default to production
-                    
-                    // If on localhost, try local first
+                    let API_URL = "https://sphinx-gpt-beta-production.up.railway.app";
                     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-                        try {
-                            const testLocal = await fetch("http://localhost:8000/health", { mode: 'no-cors' });
-                            API_URL = "http://localhost:8000";
-                        } catch (e) {
-                            console.log("Local backend not found, using production fallback.");
-                        }
+                        API_URL = "http://localhost:8000";
                     }
-
-                    const sendBtnIcon = sendBtn.querySelector('.send-icon');
-                    sendBtn.disabled = true;
-                    sendBtnIcon.textContent = 'pending';
 
                     // Build history
                     const historyForBackend = [];
                     const messageElements = chatMessages.querySelectorAll('.message');
-                    for (let i = 0; i < messageElements.length - 1; i++) {
-                        const el = messageElements[i];
+                    // Get recent history (last 10 messages)
+                    const recentMsgs = Array.from(messageElements).slice(-10);
+                    recentMsgs.forEach(el => {
                         const isUser = el.classList.contains('user-message');
-                        const p = el.querySelector('p');
-                        if (p) {
+                        const text = el.querySelector('.text-body')?.textContent;
+                        if (text) {
                             historyForBackend.push({
                                 role: isUser ? "user" : "assistant",
-                                content: p.textContent
+                                content: text
                             });
                         }
-                    }
+                    });
 
                     // Create AI message placeholder
                     const aiMsgDiv = addMessage("", 'ai');
@@ -659,7 +728,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            question: msg,
+                            question: finalMsg,
                             user_id: currentUserId,
                             history: historyForBackend,
                             mode: currentMode
@@ -668,7 +737,6 @@
 
                     if (!response.ok) throw new Error(`Server Error: ${response.status}`);
 
-                    // Read the stream
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
 
@@ -683,29 +751,22 @@
                             if (line.startsWith('data: ')) {
                                 const dataStr = line.replace('data: ', '').trim();
                                 if (dataStr === '[DONE]') break;
-                                
                                 try {
                                     const data = JSON.parse(dataStr);
                                     if (data.content) {
                                         fullAiResponse += data.content;
-                                        aiTextDiv.innerHTML = formatMessage(fullAiResponse); // Use innerHTML for markdown-lite
-                                        
-                                        // Auto-scroll while streaming
+                                        aiTextDiv.innerHTML = formatMessage(fullAiResponse);
                                         const scrollWrapper = document.getElementById('chat-interface');
                                         scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
                                     }
-                                } catch (e) {
-                                    console.warn("Error parsing stream chunk", e);
-                                }
+                                } catch (e) { }
                             }
                         }
                     }
 
-                    // Re-enable button
                     sendBtn.disabled = false;
                     sendBtnIcon.textContent = 'arrow_upward';
 
-                    // Save final response and update dashboard
                     if (fullAiResponse) {
                         await saveMessageToSupabase(fullAiResponse, 'ai');
                         if (currentUserId) fetchUserData(currentUserId);
@@ -714,12 +775,11 @@
                 } catch (error) {
                     console.error("Streaming error:", error);
                     sendBtn.disabled = false;
-                    const sendBtnIcon = sendBtn.querySelector('.send-icon');
                     sendBtnIcon.textContent = 'arrow_upward';
                     addMessage(`❌ Connection Failed: ${error.message}`, 'ai');
                 }
             }
-            // Event Listeners for Unified Search
+            // Event Listeners
             sendBtn.addEventListener('click', handleSend);
             searchInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -728,9 +788,10 @@
                 }
             });
 
-            // Event Listeners for Mic and Upload Buttons
+            // Mic and Upload
             const micBtns = document.querySelectorAll('.mic-btn');
-            const uploadBtns = document.querySelectorAll('.upload-btn');
+            const uploadBtnMain = document.getElementById('upload-btn-main');
+            const imageUploadInput = document.getElementById('image-upload-input');
             const comingSoonModal = document.getElementById('coming-soon-modal');
             const closeComingSoonBtn = document.getElementById('close-coming-soon');
 
@@ -739,8 +800,19 @@
                 comingSoonModal.style.display = 'flex';
             }
 
+            if (uploadBtnMain && imageUploadInput) {
+                uploadBtnMain.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    imageUploadInput.click();
+                });
+
+                imageUploadInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) showImagePreview(file);
+                });
+            }
+
             micBtns.forEach(btn => btn.addEventListener('click', showComingSoon));
-            uploadBtns.forEach(btn => btn.addEventListener('click', showComingSoon));
 
             if (closeComingSoonBtn) {
                 closeComingSoonBtn.addEventListener('click', () => {

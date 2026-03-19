@@ -661,7 +661,7 @@
                     }
 
                     // Convert map to array and sort by latest session first
-                    const uniqueSessions = Array.from(sessionsMap.values()).sort((a, b) => 
+                    const uniqueSessions = Array.from(sessionsMap.values()).sort((a, b) =>
                         new Date(b.created_at) - new Date(a.created_at)
                     );
 

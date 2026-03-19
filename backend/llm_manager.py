@@ -25,8 +25,10 @@ import os
 #  CONFIG
 # ─────────────────────────────────────────────
 
+from dotenv import load_dotenv
+load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = "moonshotai/kimi-k2-instruct"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # We initialize the client only if the API KEY is present.
 # This prevents a crash during module import on platforms like Railway

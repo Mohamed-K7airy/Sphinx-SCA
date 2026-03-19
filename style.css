@@ -2248,3 +2248,222 @@ body.dark-theme .mode-option:hover {
 .mode-option .material-symbols-outlined {
     font-size: 18px;
 }
+
+/* --- IMAGE REFINEMENT FIXES --- */
+
+/* Fixed Avatar Size Constraint (Desktop & Global) */
+.message-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(224, 112, 46, 0.1); /* Fallback */
+}
+
+.message-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+/* Image Preview in Search Bar (Gemini-style Small Square) */
+.image-preview-wrapper {
+    display: none;
+    padding: 10px;
+    background: transparent;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    align-items: center;
+    position: relative;
+    width: fit-content;
+}
+
+.image-preview-thumbnail {
+    width: 64px !important;  /* Fixed small square */
+    height: 64px !important;
+    border-radius: 12px;
+    object-fit: cover;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.remove-preview-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 10;
+    transition: all 0.2s;
+}
+
+.remove-preview-btn:hover {
+    background: #000;
+    transform: scale(1.1);
+}
+
+/* Images in Chat bubbles */
+.message-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    display: block;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.message-image:hover {
+    transform: scale(1.01);
+}
+/* --- IMAGE MESSAGE REFINEMENT --- */
+
+/* Remove the 'square' (background) for user messages with images */
+.user-message.has-image .message-content {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+/* Style the text bubble below the image if text exists */
+.user-message.has-image .text-body {
+    background: var(--user-msg-bg);
+    padding: 10px 18px;
+    border-radius: 18px 4px 18px 18px; /* Gemini style */
+    margin-top: 8px;
+    display: inline-block;
+    color: var(--user-msg-text);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 85%;
+}
+
+.user-message.has-image .message-image {
+    margin-bottom: 0; /* Handled by text-body margin */
+}
+
+
+/* Single Person Profile Layout Styles */
+.single-profile-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px 20px 40px;
+    overflow: visible;
+}
+
+.single-profile-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    background: rgba(17, 24, 39, 0.4);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 40px 60px;
+    gap: 40px;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+    overflow: visible;
+}
+
+.single-profile-row.reverse {
+    flex-direction: row-reverse;
+}
+
+.single-info-column {
+    flex: 1.2;
+    padding-right: 20px;
+    padding-top: 10px;
+}
+
+.single-lanyard-column {
+    flex: 0.8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    align-self: center;
+    min-width: 350px;
+    overflow: visible;
+}
+
+.about-me-heading {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 25px;
+    letter-spacing: -0.5px;
+}
+
+.single-bio {
+    font-size: 16px;
+    line-height: 1.8;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 50px;
+    max-width: 550px;
+}
+
+.single-stats-container {
+    display: flex;
+    gap: 50px;
+}
+
+.single-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.single-stat-num {
+    font-size: 32px;
+    font-weight: 800;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+}
+
+.single-stat-num .accent {
+    color: var(--bg-orange);
+    font-size: 24px;
+    margin-left: 2px;
+}
+
+.single-stat-lab {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+}
+
+@media (max-width: 900px) {
+    .single-profile-row, .single-profile-row.reverse {
+        flex-direction: column-reverse;
+        padding: 40px 20px;
+        text-align: center;
+    }
+    .single-info-column {
+        padding-right: 0;
+    }
+    .single-bio {
+        margin: 0 auto 40px;
+    }
+    .single-stats-container {
+        justify-content: center;
+        gap: 30px;
+    }
+    .single-lanyard-column {
+        min-width: 100%;
+    }
+}
