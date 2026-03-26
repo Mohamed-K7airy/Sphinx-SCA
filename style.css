@@ -2034,9 +2034,8 @@ body.light-theme .stat-label {
     opacity: 0.7;
 }
 
- / *   L a n y a r d   a n d   F l o a t i n g   A n i m a t i o n   S t y l e s   * / 
+ / *   L a n y a r d   a n d   F l o a t i n g   A n i m a t i o n   S t y l e s   * / 
 
-/* Lanyard and Floating Animation Styles */
 .id-badge-container {
     padding-top: 60px;
     /* Space for the lanyard strap */

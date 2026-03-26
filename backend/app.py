@@ -246,23 +246,31 @@ async def supabase_client():
     return FileResponse(os.path.join(FRONTEND_DIR, "supabaseClient.js"))
 
 # ─────────────────────────────────────────────
-# OCR ENDPOINT (Gemini Vision)
+# OCR ENDPOINT
 import re as re_module
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or GROQ_API_KEY
-VISION_MODEL = "gemma-3-27b-it"
+try:
+    import easyocr
+    ocr_reader = easyocr.Reader(['en'])
+except Exception as e:
+    print(f"⚠️ easyocr not available: {e}")
+    ocr_reader = None
 
-_OCR_PROMPT = (
-    "You are a math OCR engine. Extract the exact mathematical equation or expression "
-    "from this image. Reply with ONLY the equation/expression as plain text, nothing else. "
-    "Use standard math notation: ^=exponent, sqrt()=square root, *=multiply."
-)
+try:
+    from pix2tex.cli import LatexOCR
+    pix_model = LatexOCR()
+except Exception as e:
+    print(f"⚠️ pix2tex not available: {e}")
+    pix_model = None
 
 def clean_math(text):
     text = text.replace('÷','/')
     text = text.replace('×','*')
+    text = text.replace('x','*')
+    text = text.replace('X','*')
     text = text.replace('−','-')
-    return text.strip()
+    return text
+# ─────────────────────────────────────────────
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE_MB = 5
@@ -277,21 +285,26 @@ async def ocr_endpoint(
     image_bytes = await file.read()
     if len(image_bytes) > MAX_SIZE_MB * 1024 * 1024:
         return {"success": False, "error": f"File too large. Max {MAX_SIZE_MB}MB"}
-
-    # ——— Gemini Vision OCR ———
+    # OCR doesn't strictly need GROQ, so we proceed without the check
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel(VISION_MODEL)
-        img_b64 = base64.b64encode(image_bytes).decode()
-        inline_image = {"mime_type": file.content_type, "data": img_b64}
-        response = model.generate_content([_OCR_PROMPT, inline_image])
-        extracted_text = clean_math(response.text)
-        ocr_result = {"raw_text": extracted_text, "latex": extracted_text}
+        img = Image.open(io.BytesIO(image_bytes))
+        import numpy as np
+        img_array = np.array(img)
+
+        # EasyOCR
+        results = ocr_reader.readtext(img_array)
+        easy_text = " ".join([r[1] for r in results])
+        easy_text = clean_math(easy_text)
+
+        # Pix2Tex LaTeX
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        latex = pix_model(img)
+
+        ocr_result = {"raw_text": easy_text, "latex": latex}
+
     except Exception as e:
         return {"success": False, "error": f"OCR failed: {str(e)}"}
-
-    # Optional: store in Supabase
     storage_result = {"success": False, "image_url": ""}
     try:
         from backend.supabase_ocr import store_ocr
@@ -304,14 +317,14 @@ async def ocr_endpoint(
             sympy_expr=ocr_result.get("latex", ""),
             user_id=user_id,
         )
-    except Exception:
-        pass
-
+    except Exception as e:
+        storage_result = {"success": False, "error": str(e)}
     return {
         "success": True,
         "raw_text": ocr_result.get("raw_text", ""),
         "latex": ocr_result.get("latex", ""),
         "image_url": storage_result.get("image_url", ""),
+        "stored": storage_result.get("success", False),
     }
 
 if __name__ == "__main__":
