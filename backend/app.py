@@ -4,28 +4,46 @@ Sphinx-SCA — Backend API (v3 Stable)
 
 import os
 import sys
-from dotenv import load_dotenv
-load_dotenv()
 import uvicorn
 import logging
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, Request, Form
+from dotenv import load_dotenv
+
+# Load .env file at the very beginning
+load_dotenv()
+from fastapi import FastAPI, UploadFile, File, Request
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
-from PIL import Image
-import io, base64, httpx, re, json
+from fastapi.staticfiles import StaticFiles
+import json
 import asyncio
+
+# ─────────────────────────────────────────────
+# PATH CONFIG
+# ─────────────────────────────────────────────
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+# Add PROJECT_ROOT and the math_engine folder to sys.path
 sys.path.append(PROJECT_ROOT)
+sys.path.append(os.path.join(PROJECT_ROOT, "math_engine", "math_engine"))
+
+# ─────────────────────────────────────────────
+# ENVIRONMENT
+# ─────────────────────────────────────────────
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 if not GROQ_API_KEY:
-    print("⚠️ GROQ_API_KEY not found")
+    print("⚠️ GROQ_API_KEY not found in environment variables")
 else:
     print("🔑 Groq API key loaded")
+
+# ─────────────────────────────────────────────
+# LOAD LLM MANAGER
+# ─────────────────────────────────────────────
 
 try:
     from backend.llm_manager import LLMManager
@@ -42,48 +60,80 @@ except Exception as e:
     llm = None
     print("⚠️ LLM Manager failed:", e)
 
+# ─────────────────────────────────────────────
+# LOGGING
+# ─────────────────────────────────────────────
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sphinx")
 
+# ─────────────────────────────────────────────
+# MATH ENGINE IMPORTS
+# ─────────────────────────────────────────────
+
 try:
     from algebra.algebra_engine import solve as algebra_solve
-except:
+    print("✅ Algebra engine loaded")
+except Exception as e:
     algebra_solve = None
+    print(f"⚠️ Algebra engine failed: {e}")
 
 try:
     import calculus
     calculus_solve = calculus.solve
-except:
+    print("✅ Calculus engine loaded")
+except Exception as e:
     calculus_solve = None
+    print(f"⚠️ Calculus engine failed: {e}")
 
 try:
     import geometry
     geometry_solve = geometry.solve
-except:
+    print("✅ Geometry engine loaded")
+except Exception as e:
     geometry_solve = None
+    print(f"⚠️ Geometry engine failed: {e}")
 
 try:
     import statistics_engine
     statistics_solve = statistics_engine.solve
-except:
+    print("✅ Statistics engine loaded")
+except Exception as e:
     statistics_solve = None
+    print(f"⚠️ Statistics engine failed: {e}")
 
 try:
     import linear_algebra
     linear_algebra_solve = linear_algebra.solve
-except:
+    print("✅ Linear algebra engine loaded")
+except Exception as e:
     linear_algebra_solve = None
+    print(f"⚠️ Linear algebra engine failed: {e}")
 
 print(f"📦 Engines Loaded: Algebra={algebra_solve is not None}, Calculus={calculus_solve is not None}, Geometry={geometry_solve is not None}")
 
-app = FastAPI(title="Sphinx-SCA API", version="3.0")
+# ─────────────────────────────────────────────
+# FASTAPI APP
+# ─────────────────────────────────────────────
+
+# ✅ FIX: Restrict CORS to known origins instead of wildcard
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://sphinx-gpt-beta-production.up.railway.app").split(",")
+
+app = FastAPI(
+    title="Sphinx-SCA API",
+    version="3.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Allow all origins for local testing/file:// protocol
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ─────────────────────────────────────────────
+# REQUEST MODELS
+# ─────────────────────────────────────────────
 
 class QuestionRequest(BaseModel):
     question: str
@@ -95,113 +145,261 @@ class HintRequest(BaseModel):
     problem_type: str = "algebra"
     num_hints: int = 3
 
+# ─────────────────────────────────────────────
+# SOLVER HELPER
+# ─────────────────────────────────────────────
+
 def run_solver(fn, *args, **kwargs):
+
     if fn is None:
         return {"success": False, "error": "engine not available"}
+
     try:
         result = fn(*args, **kwargs)
+
         if isinstance(result, dict):
             return {"success": True, **result}
-        return {"success": True, "final_answer": str(result)}
+
+        return {
+            "success": True,
+            "final_answer": str(result)
+        }
+
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        # ✅ FIX: Log the actual error instead of swallowing it silently
+        logger.error("Solver error in %s: %s", fn.__name__ if hasattr(fn, '__name__') else str(fn), e, exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+# ─────────────────────────────────────────────
+# MAIN PIPELINE
+# ─────────────────────────────────────────────
 
 def route_and_solve(question: str, history: list = None, mode: str = "general"):
+
     if history is None:
         history = []
+
     logger.info("Question: %s", question)
+
     if llm is None:
-        return {"success": False, "error": "LLM not available"}
+        return {
+            "success": False,
+            "error": "LLM not available"
+        }
+    
+    # Custom Processing for "Think" or "Steps" mode
     if mode == "think":
         question = f"[Think Deeply and Explain Thoroughly] {question}"
     elif mode == "steps":
         question = f"[Provide detailed step-by-step solution] {question}"
+
+    # 1️⃣ classify
     try:
         c = llm.classify(question)
         branch = c.get("branch", "algebra")
         problem_type = c.get("problem_type", "solve")
         is_math = c.get("is_math", True)
-    except:
+    except Exception as e:
+        logger.warning("Classification failed, defaulting to algebra: %s", e)
         branch = "algebra"
         problem_type = "solve"
         is_math = True
+
+    # 2️⃣ chat
     if not is_math or branch == "chat":
+
         try:
             answer = llm.chat(question, history)
-            return {"success": True, "branch": "chat", "final_answer": answer, "is_chat": True, "llm_steps": []}
+
+            return {
+                "success": True,
+                "branch": "chat",
+                "final_answer": answer,
+                "is_chat": True,
+                "llm_steps": []
+            }
+
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error("Chat error: %s", e, exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    # 3️⃣ parse
     try:
         parsed = llm.parse(question, branch)
-    except:
+    except Exception as e:
+        logger.warning("Parse failed: %s", e)
         parsed = {}
+
+    # 4️⃣ solve
     result = {"success": False}
+
     if branch == "algebra":
-        result = run_solver(algebra_solve, parsed.get("expression", question))
+
+        expr = parsed.get("expression", question)
+        result = run_solver(algebra_solve, expr)
+
     elif branch == "calculus":
-        result = run_solver(calculus_solve, parsed.get("expression", question))
+
+        expr = parsed.get("expression", question)
+        result = run_solver(calculus_solve, expr)
+
     elif branch == "geometry":
-        result = run_solver(geometry_solve, parsed.get("shape"), parsed.get("find"), **parsed.get("known", {}))
+
+        shape = parsed.get("shape")
+        find = parsed.get("find")
+        known = parsed.get("known", {})
+        result = run_solver(geometry_solve, shape, find, **known)
+
     elif branch == "statistics":
-        result = run_solver(statistics_solve, parsed.get("operation", "mean"), data=parsed.get("data", []))
+
+        data = parsed.get("data", [])
+        op = parsed.get("operation", "mean")
+        result = run_solver(statistics_solve, op, data=data)
+
     elif branch == "linear_algebra":
-        result = run_solver(linear_algebra_solve, parsed.get("operation", "determinant"), matrix=parsed.get("matrix_a"))
+
+        op = parsed.get("operation", "determinant")
+        matrix = parsed.get("matrix_a")
+        result = run_solver(linear_algebra_solve, op, matrix=matrix)
+
+    # 5️⃣ fallback to LLM
     if not result.get("success"):
+
         try:
             wp = llm.word_problem(question)
-            result = {"success": True, "final_answer": wp.get("answer_sentence")}
-        except:
-            pass
+
+            result = {
+                "success": True,
+                "final_answer": wp.get("answer_sentence")
+            }
+
+        except Exception as e:
+            logger.error("Word problem fallback failed: %s", e, exc_info=True)
+
+    # 6️⃣ steps
     if result.get("success"):
+
         try:
-            steps = llm.steps(question, result.get("final_answer", ""), branch)
-        except:
+            steps = llm.steps(
+                question,
+                result.get("final_answer", ""),
+                branch
+            )
+        except Exception as e:
+            logger.warning("Steps generation failed: %s", e)
             steps = []
+
         result["llm_steps"] = steps
+
     result["branch"] = branch
     result["problem_type"] = problem_type
     result["is_chat"] = False
     result["mode"] = mode
+
+    # Ensure steps are generated if mode is 'steps' and not already present
+    if mode == "steps" and not result.get("llm_steps") and result.get("success"):
+        try:
+            steps = llm.steps(question, result.get("final_answer", ""), branch)
+            result["llm_steps"] = steps
+        except Exception as e:
+            logger.warning("Steps (mode=steps) generation failed: %s", e)
+
     return result
+
+# ─────────────────────────────────────────────
+# ENDPOINTS
+# ─────────────────────────────────────────────
 
 @app.post("/solve")
 async def solve(req: QuestionRequest):
     return route_and_solve(req.question, req.history, req.mode)
 
+
 @app.post("/solve_stream")
 async def solve_stream(req: QuestionRequest):
+    """Streaming endpoint for chat-like experience."""
     if llm is None:
         return JSONResponse({"success": False, "error": "LLM not initialized"}, status_code=500)
+
     messages = []
     if req.history:
         for m in req.history:
+            # Handle both 'sender' and 'role' for compatibility
             role = m.get('role') or ("user" if m.get("sender") == "user" else "assistant")
-            messages.append({"role": role, "content": m.get("content", "")})
+            content = m.get("content", "")
+            if role and content:
+                messages.append({"role": role, "content": content})
+    
+    # Add current question
     prompt = req.question
     if req.mode == "think":
         prompt = f"Please solve this and explain your deep thinking process: {req.question}"
     elif req.mode == "steps":
         prompt = f"Please provide a detailed step-by-step solution for: {req.question}"
+        
     messages.append({"role": "user", "content": prompt})
+
     def chunk_generator():
-        for chunk in llm.stream_chat(messages):
-            yield f"data: {json.dumps({'content': chunk})}\n\n"
+        try:
+            for chunk in llm.stream_chat(messages):
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+        except Exception as e:
+            logger.error("Streaming error: %s", e, exc_info=True)
+            yield f"data: {json.dumps({'error': 'Stream interrupted'})}\n\n"
         yield "data: [DONE]\n\n"
+
     return StreamingResponse(chunk_generator(), media_type="text/event-stream")
+
 
 @app.post("/hints")
 async def hints(req: HintRequest):
+
     if llm is None:
         return {"success": False}
+
     try:
         hints = llm.hints(req.question, req.problem_type, req.num_hints)
-        return {"success": True, "hints": hints}
+
+        return {
+            "success": True,
+            "hints": hints
+        }
+
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("Hints error: %s", e, exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+# ─────────────────────────────────────────────
+# HEALTH
+# ─────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "llm_loaded": llm is not None}
+
+    return {
+        "status": "ok",
+        "llm_loaded": llm is not None,
+        "engines": {
+            "algebra": algebra_solve is not None,
+            "calculus": calculus_solve is not None,
+            "geometry": geometry_solve is not None,
+            "statistics": statistics_solve is not None,
+            "linear_algebra": linear_algebra_solve is not None,
+        }
+    }
+
+# ─────────────────────────────────────────────
+# SERVE FRONTEND
+# ─────────────────────────────────────────────
 
 FRONTEND_DIR = PROJECT_ROOT
 
@@ -246,88 +444,11 @@ async def supabase_client():
     return FileResponse(os.path.join(FRONTEND_DIR, "supabaseClient.js"))
 
 # ─────────────────────────────────────────────
-# OCR ENDPOINT
-import re as re_module
-
-try:
-    import easyocr
-    ocr_reader = easyocr.Reader(['en'])
-except Exception as e:
-    print(f"⚠️ easyocr not available: {e}")
-    ocr_reader = None
-
-try:
-    from pix2tex.cli import LatexOCR
-    pix_model = LatexOCR()
-except Exception as e:
-    print(f"⚠️ pix2tex not available: {e}")
-    pix_model = None
-
-def clean_math(text):
-    text = text.replace('÷','/')
-    text = text.replace('×','*')
-    text = text.replace('x','*')
-    text = text.replace('X','*')
-    text = text.replace('−','-')
-    return text
+# RUN SERVER
 # ─────────────────────────────────────────────
 
-ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_SIZE_MB = 5
-
-@app.post("/ocr")
-async def ocr_endpoint(
-    file: UploadFile = File(...),
-    user_id: Optional[str] = Form(None),
-):
-    if file.content_type not in ALLOWED_TYPES:
-        return {"success": False, "error": "Invalid file type"}
-    image_bytes = await file.read()
-    if len(image_bytes) > MAX_SIZE_MB * 1024 * 1024:
-        return {"success": False, "error": f"File too large. Max {MAX_SIZE_MB}MB"}
-    # OCR doesn't strictly need GROQ, so we proceed without the check
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        import numpy as np
-        img_array = np.array(img)
-
-        # EasyOCR
-        results = ocr_reader.readtext(img_array)
-        easy_text = " ".join([r[1] for r in results])
-        easy_text = clean_math(easy_text)
-
-        # Pix2Tex LaTeX
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        latex = pix_model(img)
-
-        ocr_result = {"raw_text": easy_text, "latex": latex}
-
-    except Exception as e:
-        return {"success": False, "error": f"OCR failed: {str(e)}"}
-    storage_result = {"success": False, "image_url": ""}
-    try:
-        from backend.supabase_ocr import store_ocr
-        storage_result = await store_ocr(
-            image_bytes=image_bytes,
-            filename=file.filename or "image.jpg",
-            content_type=file.content_type,
-            raw_text=ocr_result.get("raw_text", ""),
-            latex=ocr_result.get("latex", ""),
-            sympy_expr=ocr_result.get("latex", ""),
-            user_id=user_id,
-        )
-    except Exception as e:
-        storage_result = {"success": False, "error": str(e)}
-    return {
-        "success": True,
-        "raw_text": ocr_result.get("raw_text", ""),
-        "latex": ocr_result.get("latex", ""),
-        "image_url": storage_result.get("image_url", ""),
-        "stored": storage_result.get("success", False),
-    }
-
 if __name__ == "__main__":
+
     uvicorn.run(
         "backend.app:app",
         host="0.0.0.0",

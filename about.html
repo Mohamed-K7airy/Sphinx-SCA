@@ -5,23 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About Us | Sphinx-SCA</title>
+    <meta name="description" content="Meet the team behind Sphinx-SCA — the AI-powered math solver built by passionate engineers.">
     <link rel="icon" type="image/png" href="/logo.png">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Force Dark Theme for About Page -->
+    <!-- Theme Initialization -->
     <script>
-        document.documentElement.classList.add('dark-theme');
+        (function () {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
     </script>
-    <style>
-        body.app-page,
-        .main-content-wrapper {
-            background: #000 !important;
-        }
-    </style>
 
     <!-- Material Icons -->
     <link rel="stylesheet"
@@ -30,7 +30,12 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="app-page dark-theme">
+<body class="app-page">
+    <script>
+        if (document.documentElement.classList.contains('dark-theme')) {
+            document.body.classList.add('dark-theme');
+        }
+    </script>
     <div class="app-layout">
         <!-- Main Sidebar -->
         <aside class="main-sidebar collapsed" id="main-sidebar">
@@ -81,24 +86,22 @@
         <div class="main-content-wrapper">
             <header class="header">
                 <button class="mobile-left-menu-btn" id="mobile-left-menu-btn" style="display: none;">
-                    <span class="material-symbols-outlined" style="font-size: 28px;">menu</span>
+                    <span class="material-symbols-outlined" style="font-size: 24px;">menu</span>
                 </button>
                 <div class="logo-container" onclick="window.location.href='index.html'">
                     <img src="logo.png" alt="Sphinx-SCA Logo" class="logo-icon">
                     <div class="logo-text">
-                        <span class="logo-sphinx">Sphinx</span><span class="logo-sca">-SCA</span><span
-                            style="font-size: 14px; font-weight: 800; color: var(--bg-orange); margin-left: 6px; vertical-align: middle;">BETA</span>
+                        <span class="logo-sphinx">Sphinx</span><span class="logo-sca">-SCA</span>
                     </div>
                 </div>
 
                 <nav class="nav">
-                    <button class="nav-theme-toggle" id="theme-toggle-btn" title="Toggle Dark/Light Mode"
-                        style="display: none;">
+                    <button class="nav-theme-toggle" id="theme-toggle-btn" title="Toggle Dark/Light Mode">
                         <span class="material-symbols-outlined theme-icon">dark_mode</span>
                     </button>
                     <a href="index.html" class="nav-link">Home</a>
-                    <a href="about.html" class="nav-link" style="color: var(--bg-orange)">About Us</a>
-                    <a href="login.html" class="nav-link" id="nav-login-btn">log in</a>
+                    <a href="about.html" class="nav-link" style="color: var(--primary)">About</a>
+                    <a href="login.html" class="nav-link" id="nav-login-btn">Log in</a>
 
                     <div class="profile-container" id="nav-profile-container">
                         <div class="nav-profile" id="nav-user-avatar" title="Your Account"></div>
@@ -118,14 +121,10 @@
 
             <main class="scrollable-content" style="flex: 1; overflow-y: auto;">
                 <section class="about-hero">
-                    <h1 class="about-title">MEET OUR TEAM</h1>
-                    <div class="pharaonic-line">
-                        <div class="diamond"></div>
-                        <div class="line"></div>
-                        <div class="diamond center"></div>
-                        <div class="line"></div>
-                        <div class="diamond"></div>
-                    </div>
+                    <h1 class="about-title">Meet Our Team</h1>
+                    <p style="color: var(--text-secondary); font-size: var(--font-body); max-width: 500px; margin: 0 auto; line-height: 1.6;">
+                        The passionate engineers and designers behind Sphinx-SCA.
+                    </p>
                 </section>
 
                 <!-- React Team Section Revamp -->
@@ -135,7 +134,7 @@
 
                 <script type="module" src="/src/team_revamp.jsx"></script>
 
-                <footer style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5); font-size: 13px;">
+                <footer style="text-align: center; padding: 40px; color: var(--text-muted); font-size: var(--font-xs);">
                     &copy; 2026 Sphinx-SCA. All rights reserved.
                 </footer>
             </main>
@@ -194,14 +193,20 @@
 
             // Theme Toggle
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
-            themeToggleBtn.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark-theme');
-                document.body.classList.toggle('dark-theme');
-                const isDark = document.body.classList.contains('dark-theme');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                const icon = themeToggleBtn.querySelector('.theme-icon');
-                icon.textContent = isDark ? 'light_mode' : 'dark_mode';
-            });
+            if (themeToggleBtn) {
+                const themeIcon = themeToggleBtn.querySelector('.theme-icon');
+                // Update icon on load
+                const isDarkNow = document.body.classList.contains('dark-theme');
+                if (themeIcon) themeIcon.textContent = isDarkNow ? 'light_mode' : 'dark_mode';
+
+                themeToggleBtn.addEventListener('click', () => {
+                    document.documentElement.classList.toggle('dark-theme');
+                    document.body.classList.toggle('dark-theme');
+                    const isDark = document.body.classList.contains('dark-theme');
+                    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                    if (themeIcon) themeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
+                });
+            }
         });
     </script>
 </body>

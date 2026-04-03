@@ -4,15 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sphinx-SCA </title>
+    <title>Sphinx-SCA — AI Math Solver & Assistant</title>
+    <meta name="description"
+        content="Sphinx-SCA is a premium AI-powered math solver and assistant. Get instant solutions, step-by-step explanations, and smart tutoring.">
     <link rel="icon" type="image/png" href="/logo.png">
 
-    <!-- Google Fonts for Inter -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
 
-    <!-- Theme Initialization Script (Before render) -->
+    <!-- Theme Initialization (Before render) -->
     <script>
         (function () {
             const savedTheme = localStorage.getItem('theme');
@@ -22,11 +25,14 @@
         })();
     </script>
 
-    <!-- Material Icons for UI elements -->
+    <!-- Material Icons -->
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
     <link rel="stylesheet" href="style.css">
+
+    <!-- GeoGebra Graphing Applet -->
+    <script src="https://www.geogebra.org/apps/deployggb.js"></script>
 </head>
 
 <body class="app-page">
@@ -90,13 +96,12 @@
         <div class="main-content-wrapper">
             <header class="header">
                 <button class="mobile-left-menu-btn" id="mobile-left-menu-btn" style="display: none;">
-                    <span class="material-symbols-outlined" style="font-size: 28px;">menu</span>
+                    <span class="material-symbols-outlined" style="font-size: 24px;">menu</span>
                 </button>
                 <div class="logo-container">
                     <img src="logo.png" alt="Sphinx-SCA Logo" class="logo-icon">
                     <div class="logo-text">
-                        <span class="logo-sphinx">Sphinx</span><span class="logo-sca">-SCA</span><span
-                            style="font-size: 14px; font-weight: 800; color: var(--bg-orange); margin-left: 6px; vertical-align: middle;"></span>
+                        <span class="logo-sphinx">Sphinx</span><span class="logo-sca">-SCA</span>
                     </div>
                 </div>
 
@@ -104,7 +109,7 @@
                     <button class="nav-theme-toggle" id="theme-toggle-btn" title="Toggle Dark/Light Mode">
                         <span class="material-symbols-outlined theme-icon">dark_mode</span>
                     </button>
-                    <a href="login.html" class="nav-link" id="nav-login-btn">log in</a>
+                    <a href="login.html" class="nav-link" id="nav-login-btn">Log in</a>
 
                     <div class="profile-container" id="nav-profile-container">
                         <div class="nav-profile" id="nav-user-avatar" title="Your Account"></div>
@@ -126,22 +131,104 @@
                 </nav>
             </header>
 
+            <!-- Landing Hero (Gemini-style, left-aligned) -->
             <main class="hero">
                 <div class="hero-content">
-                    <div class="hero-avatar-container">
-                        <img src="logo.png" alt="Sphinx-SCA AI" class="hero-avatar">
-                    </div>
-                    <h1 class="hero-title">WELCOME</h1>
-
-                    <div class="pharaonic-line">
-                        <div class="diamond"></div>
-                        <div class="line"></div>
-                        <div class="diamond center"></div>
-                        <div class="line"></div>
-                        <div class="diamond"></div>
+                    <div class="hero-brand-section">
+                        <div class="hero-logo-circle">
+                            <img src="logo.png" alt="Sphinx-GPT Logo" class="hero-logo-img">
+                        </div>
+                        <h1 class="hero-title">Your Personal Math Solver</h1>
+                        <p class="hero-subtitle">Get instant homework help from your on-demand AI math solver</p>
                     </div>
 
-                    <p class="hero-subtitle">Math Solver &amp; AI Assistant</p>
+                    <div class="gpt-tabs">
+                        <button class="gpt-tab active" data-mode="general">General</button>
+                        <button class="gpt-tab" data-mode="think">Deep Think</button>
+                        <button class="gpt-tab" data-mode="steps">Steps</button>
+                    </div>
+
+                    <!-- Input Box — MathGPT-style unified container -->
+                    <div class="hero-search-wrapper">
+                        <div class="unified-input-card">
+                            <!-- Drag & Drop Zone (top section) -->
+                            <div class="drop-zone" id="drop-zone">
+                                <div class="upload-content">
+                                    <span class="material-symbols-outlined drop-zone-icon">add_photo_alternate</span>
+                                    <span class="drop-zone-text">Drag & drop or <span class="click-link">click</span> to
+                                        add images or PDF</span>
+                                </div>
+                                <input type="file" id="drop-zone-input" accept="image/*,.pdf" style="display:none">
+                            </div>
+
+                            <div class="input-content">
+                                <div class="image-preview-wrapper" id="image-preview-wrapper">
+                                    <img src="" alt="Preview" class="image-preview-thumbnail"
+                                        id="image-preview-thumbnail">
+                                    <button class="remove-preview-btn" id="remove-preview-btn">×</button>
+                                </div>
+                                <input type="file" id="image-upload-input" accept="image/*" style="display:none">
+
+                                <!-- Input field -->
+                                <textarea class="search-input" id="main-search-input"
+                                    placeholder="Type your question here…" rows="1"></textarea>
+
+                                <!-- Footer: math | mode + send -->
+                                <div class="search-footer">
+                                    <div class="search-tools">
+                                        <button class="calc-icon-btn" id="hero-calc-toggle" title="Calculator">
+                                            <span class="material-symbols-outlined">calculate</span>
+                                        </button>
+                                        <button class="tool-pill-btn" id="math-keyboard-toggle" title="Math Keyboard">
+                                            <span class="material-symbols-outlined"
+                                                style="font-size: 20px;">functions</span>
+                                            <span>Math Input</span>
+                                        </button>
+                                        <button class="tool-pill-btn" id="hero-tool-create-graph" onclick="toggleGraphBar()" title="Create Graph">
+                                            <span class="material-symbols-outlined" style="font-size: 20px;">show_chart</span>
+                                            <span>Create Graph</span>
+                                        </button>
+                                        <button class="calc-icon-btn mic-btn" title="Voice Input">
+                                            <span class="material-symbols-outlined">mic</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="search-actions">
+                                        <!-- Mode Dropdown kept on the right -->
+                                        <div class="mode-dropdown" id="mode-dropdown">
+                                            <button class="mode-dropdown-btn" id="mode-dropdown-btn">
+                                                <span
+                                                    class="material-symbols-outlined dropdown-icon">auto_awesome</span>
+                                                <span class="dropdown-text">General</span>
+                                                <span class="material-symbols-outlined">expand_more</span>
+                                            </button>
+                                            <div class="mode-dropdown-menu" id="mode-dropdown-menu">
+                                                <div class="mode-option active" data-mode="general">
+                                                    <span class="material-symbols-outlined">auto_awesome</span>
+                                                    <span>General</span>
+                                                </div>
+                                                <div class="mode-option" data-mode="think">
+                                                    <span class="material-symbols-outlined">psychology</span>
+                                                    <span>Deep Think</span>
+                                                </div>
+                                                <div class="mode-option" data-mode="steps">
+                                                    <span class="material-symbols-outlined">format_list_numbered</span>
+                                                    <span>Steps</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button class="send-btn" id="main-send-btn" title="Send">
+                                            <span class="material-symbols-outlined send-icon">arrow_upward</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="hero-disclaimer">Sphinx-GPT can make mistakes. Always verify important calculations.</p>
+
                 </div>
             </main>
 
@@ -154,60 +241,155 @@
                 </div>
             </main>
 
-            <!-- Floating Unified Search Container -->
-            <div class="floating-search-wrapper" id="floating-search-wrapper">
-                <div class="search-container">
-                    <div class="image-preview-wrapper" id="image-preview-wrapper">
-                        <img src="" alt="Preview" class="image-preview-thumbnail" id="image-preview-thumbnail">
-                        <button class="remove-preview-btn" id="remove-preview-btn">×</button>
-                    </div>
-                    <textarea class="search-input" id="main-search-input" placeholder="Ask me anything about math...."
-                        rows="1"></textarea>
-                    <div class="search-footer">
-                        <div class="search-tools">
-                            <button class="icon-button mic-btn" title="Voice Input">
-                                <span class="material-symbols-outlined">mic</span>
-                            </button>
-                            <input type="file" id="image-upload-input" accept="image/*" style="display:none">
-                            <button class="icon-button upload-btn" id="upload-btn-main" title="Upload Image">
-                                <span class="material-symbols-outlined">image</span>
-                            </button>
-                        </div>
-
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <!-- Mode Dropdown -->
-                            <div class="mode-dropdown" id="mode-dropdown">
-                                <button class="mode-dropdown-btn" id="mode-dropdown-btn">
-                                    <span class="material-symbols-outlined dropdown-icon">auto_awesome</span>
-                                    <span class="dropdown-text">General</span>
-                                    <span class="material-symbols-outlined">expand_more</span>
-                                </button>
-                                <div class="mode-dropdown-menu" id="mode-dropdown-menu">
-                                    <div class="mode-option active" data-mode="general">
-                                        <span class="material-symbols-outlined">auto_awesome</span>
-                                        <span>General</span>
-                                    </div>
-                                    <div class="mode-option" data-mode="think">
-                                        <span class="material-symbols-outlined">psychology</span>
-                                        <span>Deep Think</span>
-                                    </div>
-                                    <div class="mode-option" data-mode="steps">
-                                        <span class="material-symbols-outlined">format_list_numbered</span>
-                                        <span>Steps</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button class="send-btn" id="main-send-btn" title="Send Request">
-                                <span class="material-symbols-outlined send-icon">arrow_upward</span>
-                            </button>
-                        </div>
-                    </div>
+            <!-- Global Math Keyboard / Symbol Toolbar (placed before floating wrapper for better flow) -->
+            <div class="math-toolbar" id="math-toolbar">
+                <div class="math-toolbar-tabs">
+                    <button class="math-tab active" data-tab="popular">Popular</button>
+                    <button class="math-tab" data-tab="trig">sin cos</button>
+                    <button class="math-tab" data-tab="calculus">Calculus</button>
+                    <button class="math-tab" data-tab="comparison">≥ ≠</button>
+                    <button class="math-tab" data-tab="sets">∈ ⊂</button>
+                    <button class="math-tab" data-tab="arrows">→</button>
+                    <button class="math-tab" data-tab="greek">Ωα</button>
                 </div>
-                <div class="chat-disclaimer">Sphinx-SCA can make mistakes. Always verify important calculations.
+                <div class="math-symbols-grid" id="math-symbols-grid">
+                    <button class="math-sym-btn" data-insert="/" title="Fraction">⁄</button>
+                    <button class="math-sym-btn" data-insert="x^" title="Superscript">x□</button>
+                    <button class="math-sym-btn" data-insert="x_" title="Subscript">x₍₎</button>
+                    <button class="math-sym-btn" data-insert="√(" title="Square root">√□</button>
+                    <button class="math-sym-btn" data-insert="∛(" title="Cube root">∛□</button>
+                    <button class="math-sym-btn" data-insert="log(" title="Logarithm">log₍₎</button>
+                    <button class="math-sym-btn" data-insert="∫" title="Integral">∫</button>
+                    <button class="math-sym-btn" data-insert="Σ" title="Summation">Σ</button>
+                    <button class="math-sym-btn" data-insert="π" title="Pi">π</button>
+                    <button class="math-sym-btn" data-insert="∞" title="Infinity">∞</button>
+                    <button class="math-sym-btn" data-insert="+" title="Plus">+</button>
+                    <button class="math-sym-btn" data-insert="−" title="Minus">−</button>
+                    <button class="math-sym-btn" data-insert="×" title="Multiply">×</button>
+                    <button class="math-sym-btn" data-insert="÷" title="Divide">÷</button>
+                    <button class="math-sym-btn" data-insert="!" title="Factorial">!</button>
+                    <button class="math-sym-btn" data-insert="log(" title="Log">log</button>
+                    <button class="math-sym-btn" data-insert="ln(" title="Natural log">ln</button>
+                    <button class="math-sym-btn" data-insert="x^2" title="Squared">x²</button>
+                    <button class="math-sym-btn" data-insert="x^(-1)" title="Inverse">x⁻¹</button>
+                    <button class="math-sym-btn" data-insert="(n choose k)" title="Binomial">C(n,k)</button>
+                    <button class="math-sym-btn" data-insert="∂" title="Partial">∂</button>
+                    <button class="math-sym-btn" data-insert="e^" title="Exponential">eˣ</button>
+                    <button class="math-sym-btn" data-insert="e^(iπ)" title="Euler">eⁱ</button>
+                    <button class="math-sym-btn" data-insert="±" title="Plus-minus">±</button>
                 </div>
             </div>
 
+            <!-- Floating Input Bar (shown only in chat mode) -->
+            <div class="floating-search-wrapper" id="floating-search-wrapper" style="display: none;">
+                <div class="unified-input-card">
+                    <div class="drop-zone" id="chat-drop-zone">
+                        <div class="upload-content">
+                            <span class="material-symbols-outlined drop-zone-icon">add_photo_alternate</span>
+                            <span class="drop-zone-text">Drag & drop or <span class="click-link">click</span> to add
+                                images or PDF</span>
+                        </div>
+                        <input type="file" id="chat-drop-zone-input" accept="image/*,.pdf" style="display:none">
+                    </div>
+                    <div class="input-content">
+                        <textarea class="search-input" id="chat-search-input" placeholder="Ask Sphinx-SCA…"
+                            rows="1"></textarea>
+                        <div class="search-footer">
+                            <div class="search-tools">
+                                <button class="icon-button" id="chat-calc-toggle" title="Calculator">
+                                    <span class="material-symbols-outlined">calculate</span>
+                                </button>
+                                <button class="math-mode-btn" id="chat-math-keyboard-toggle" title="Math Keyboard">
+                                    <span class="material-symbols-outlined">functions</span>
+                                    <span>Math Input</span>
+                                </button>
+                                <button class="math-mode-btn" id="tool-create-graph" onclick="toggleGraphBar()" title="Create Graph">
+                                    <span class="material-symbols-outlined">show_chart</span>
+                                    <span>Create Graph</span>
+                                </button>
+                                <button class="icon-button mic-btn" title="Voice Input">
+                                    <span class="material-symbols-outlined">mic</span>
+                                </button>
+                            </div>
+                            <div class="search-actions">
+                                <div class="mode-dropdown">
+                                    <button class="mode-dropdown-btn" id="chat-mode-btn">
+                                        <span class="material-symbols-outlined dropdown-icon">auto_awesome</span>
+                                        <span class="dropdown-text">General</span>
+                                        <span class="material-symbols-outlined">expand_more</span>
+                                    </button>
+                                    <div class="mode-dropdown-menu" id="chat-mode-dropdown-menu">
+                                        <div class="mode-option active" data-mode="general">
+                                            <span class="material-symbols-outlined">auto_awesome</span>
+                                            <span>General</span>
+                                        </div>
+                                        <div class="mode-option" data-mode="think">
+                                            <span class="material-symbols-outlined">psychology</span>
+                                            <span>Deep Think</span>
+                                        </div>
+                                        <div class="mode-option" data-mode="steps">
+                                            <span class="material-symbols-outlined">format_list_numbered</span>
+                                            <span>Steps</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="send-btn" id="chat-send-btn" title="Send">
+                                    <span class="material-symbols-outlined send-icon">arrow_upward</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-disclaimer">Sphinx-SCA can make mistakes. Always verify important calculations.</div>
+            </div>
+
+
+            <div class="calculator-panel" id="calculatorPanel">
+                <div class="calc-header">
+                    <button class="calc-tab active" id="calcTabBasic">⊞ Basic Calculator</button>
+                    <button class="calc-close" id="calcCloseBtn">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div id="basicCalc" class="calc-body">
+                    <div class="calc-display" id="calcDisplay">0</div>
+                    <div class="calc-grid">
+                        <button class="calc-btn func" data-calc="AC">AC</button>
+                        <button class="calc-btn func" data-calc="⌫">⌫</button>
+                        <button class="calc-btn func" data-calc="^">^</button>
+                        <button class="calc-btn op" data-calc="/">÷</button>
+                        <button class="calc-btn" data-calc="7">7</button>
+                        <button class="calc-btn" data-calc="8">8</button>
+                        <button class="calc-btn" data-calc="9">9</button>
+                        <button class="calc-btn op" data-calc="*">×</button>
+                        <button class="calc-btn" data-calc="4">4</button>
+                        <button class="calc-btn" data-calc="5">5</button>
+                        <button class="calc-btn" data-calc="6">6</button>
+                        <button class="calc-btn op" data-calc="-">−</button>
+                        <button class="calc-btn" data-calc="1">1</button>
+                        <button class="calc-btn" data-calc="2">2</button>
+                        <button class="calc-btn" data-calc="3">3</button>
+                        <button class="calc-btn op" data-calc="+">+</button>
+                        <button class="calc-btn" data-calc="(-)">(-)</button>
+                        <button class="calc-btn" data-calc="0">0</button>
+                        <button class="calc-btn" data-calc=".">.</button>
+                        <button class="calc-btn equals" data-calc="=">=</button>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Graph Input Bar (direct plot) -->
+            <div id="graph-input-bar" class="graph-input-bar">
+                <span class="material-symbols-outlined drag-handle">drag_indicator</span>
+                <span class="material-symbols-outlined graph-bar-icon">show_chart</span>
+                <input id="fn-input" type="text" placeholder="e.g. sin(x), x^2 + 3x - 2" class="graph-bar-input">
+                <button onclick="plotFnToChat()" class="graph-bar-plot-btn">Plot</button>
+                <button onclick="document.getElementById('graph-input-bar').style.display='none'" class="graph-bar-close-btn">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
 
             <!-- Coming Soon Modal -->
             <div class="coming-soon-modal-overlay" id="coming-soon-modal">
@@ -217,13 +399,13 @@
                     </div>
                     <h2 class="coming-soon-title">Coming Soon!</h2>
                     <p class="coming-soon-text">We are working hard to bring this feature to you. Voice input and image
-                        uploads
-                        will be available in the next major update.</p>
+                        uploads will be available in the next major update.</p>
                     <button class="coming-soon-btn" id="close-coming-soon">Got It</button>
                 </div>
             </div>
         </div> <!-- End main-content-wrapper -->
     </div> <!-- End app-layout -->
+
     <script type="module">
         import { supabase } from './supabaseClient.js';
 
@@ -238,8 +420,6 @@
         async function fetchUserData(userId) {
             const sidebarHistoryList = document.getElementById('sidebar-history-list');
             try {
-                // Fetch recent messages to group by session
-                // We fetch the last 100 messages to find recent unique sessions
                 const { data: messages, error } = await supabase
                     .from('messages')
                     .select('*')
@@ -250,16 +430,13 @@
                 if (error) throw error;
 
                 if (sidebarHistoryList) {
-                    sidebarHistoryList.innerHTML = ''; // clear existing
+                    sidebarHistoryList.innerHTML = '';
                     if (messages && messages.length > 0) {
                         const sessions = [];
                         const seenSessions = new Set();
 
-                        // Extract unique sessions based on the latest user message of that session
                         messages.forEach(msg => {
-                            if (!msg.session_id) return; // Skip legacy messages without session_id
-
-                            // Only count the session if we find a user message to use as the title
+                            if (!msg.session_id) return;
                             if (!seenSessions.has(msg.session_id)) {
                                 if (msg.sender === 'user') {
                                     seenSessions.add(msg.session_id);
@@ -268,7 +445,6 @@
                             }
                         });
 
-                        // Limit to top 15 recent sessions
                         const topSessions = sessions.slice(0, 15);
 
                         if (topSessions.length > 0) {
@@ -282,7 +458,6 @@
                                 `;
                                 li.querySelector('.history-text').textContent = sessionMsg.content;
 
-                                // Add click event to load the session
                                 li.querySelector('.history-link').addEventListener('click', (e) => {
                                     e.preventDefault();
                                     loadSession(sessionMsg.session_id, sessionMsg.user_id);
@@ -291,10 +466,10 @@
                                 sidebarHistoryList.appendChild(li);
                             });
                         } else {
-                            sidebarHistoryList.innerHTML = '<li style="padding: 10px 16px; font-size: 13px; color: var(--text-gray);">No specific chats yet</li>';
+                            sidebarHistoryList.innerHTML = '<li style="padding: 10px 12px; font-size: 13px; color: var(--text-muted);">No chats yet</li>';
                         }
                     } else {
-                        sidebarHistoryList.innerHTML = '<li style="padding: 10px 16px; font-size: 13px; color: var(--text-gray);">No chats yet</li>';
+                        sidebarHistoryList.innerHTML = '<li style="padding: 10px 12px; font-size: 13px; color: var(--text-muted);">No chats yet</li>';
                     }
                 }
             } catch (error) {
@@ -311,7 +486,6 @@
 
             if (sidebarToggleBtn && mainSidebar) {
                 sidebarToggleBtn.addEventListener('click', () => {
-                    // On mobile, the button inside sidebar will just close it
                     if (window.innerWidth <= 768) {
                         mainSidebar.classList.remove('mobile-open');
                         if (sidebarOverlay) sidebarOverlay.classList.remove('active');
@@ -338,49 +512,107 @@
             const { data: { session } } = await supabase.auth.getSession();
             let currentMode = 'general';
 
-            // Handle Mode Dropdown
+            // Handle Mode Dropdown (Hero & Chat versions)
             const modeDropdownBtn = document.getElementById('mode-dropdown-btn');
             const modeDropdownMenu = document.getElementById('mode-dropdown-menu');
+            const chatModeBtn = document.getElementById('chat-mode-btn');
+            const chatModeMenu = document.getElementById('chat-mode-dropdown-menu');
             const modeOptions = document.querySelectorAll('.mode-option');
 
+            const toggleMenu = (menu, e) => {
+                e.stopPropagation();
+                // Close other menus first
+                document.querySelectorAll('.mode-dropdown-menu').forEach(m => {
+                    if (m !== menu) m.classList.remove('active');
+                });
+                menu.classList.toggle('active');
+            };
+
             if (modeDropdownBtn && modeDropdownMenu) {
-                modeDropdownBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    modeDropdownMenu.classList.toggle('active');
-                });
+                modeDropdownBtn.addEventListener('click', (e) => toggleMenu(modeDropdownMenu, e));
+            }
+            if (chatModeBtn && chatModeMenu) {
+                chatModeBtn.addEventListener('click', (e) => toggleMenu(chatModeMenu, e));
+            }
 
-                document.addEventListener('click', () => {
-                    modeDropdownMenu.classList.remove('active');
-                });
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.mode-dropdown-menu').forEach(m => m.classList.remove('active'));
+            });
 
-                modeOptions.forEach(option => {
-                    option.addEventListener('click', () => {
-                        const mode = option.dataset.mode;
+            const gptTabs = document.querySelectorAll('.gpt-tab');
+
+            gptTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const mode = tab.dataset.mode;
+                    if (!mode) {
+                        // Modal "Coming Soon" for Physics/Accounting/Chem
+                        const modal = document.getElementById('coming-soon-modal');
+                        if (modal) {
+                            modal.classList.add('active');
+                            modal.style.display = 'flex';
+                        }
+                        return;
+                    }
+
+                    currentMode = mode;
+
+                    // Sync with other dropdowns
+                    const option = Array.from(modeOptions).find(o => o.dataset.mode === mode);
+                    if (option) {
                         const text = option.querySelector('span:last-child').textContent;
                         const icon = option.querySelector('.material-symbols-outlined').textContent;
 
-                        currentMode = mode;
+                        [modeDropdownBtn, chatModeBtn].forEach(btn => {
+                            if (btn) {
+                                btn.querySelector('.dropdown-text').textContent = text;
+                                btn.querySelector('.dropdown-icon').textContent = icon;
+                            }
+                        });
 
-                        // Update button text and icon
-                        modeDropdownBtn.querySelector('.dropdown-text').textContent = text;
-                        modeDropdownBtn.querySelector('.dropdown-icon').textContent = icon;
+                        modeOptions.forEach(o => {
+                            o.classList.toggle('active', o.dataset.mode === mode);
+                        });
+                    }
 
-                        // Update active state
-                        modeOptions.forEach(o => o.classList.remove('active'));
-                        option.classList.add('active');
-
-                        modeDropdownMenu.classList.remove('active');
-                    });
+                    // Sync tabs UI
+                    gptTabs.forEach(t => t.classList.toggle('active', t === tab));
                 });
-            }
+            });
+
+            modeOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const mode = option.dataset.mode;
+                    const text = option.querySelector('span:last-child').textContent;
+                    const icon = option.querySelector('.material-symbols-outlined').textContent;
+
+                    currentMode = mode;
+
+                    // Update BOTH buttons
+                    [modeDropdownBtn, chatModeBtn].forEach(btn => {
+                        if (btn) {
+                            btn.querySelector('.dropdown-text').textContent = text;
+                            btn.querySelector('.dropdown-icon').textContent = icon;
+                        }
+                    });
+
+                    // Sync tabs UI
+                    gptTabs.forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+
+                    // Sync active state across ALL options
+                    modeOptions.forEach(o => {
+                        o.classList.toggle('active', o.dataset.mode === mode);
+                    });
+
+                    document.querySelectorAll('.mode-dropdown-menu').forEach(m => m.classList.remove('active'));
+                });
+            });
 
             let currentUserId = null;
-            let currentSessionId = generateUUID(); // Start a new session by default
+            let currentSessionId = generateUUID();
 
             if (session) {
                 currentUserId = session.user.id;
 
-                // Try to get name from user metadata, fallback to email prefix
                 const userMetadata = session.user.user_metadata;
                 let firstName = 'User';
                 if (userMetadata && userMetadata.name) {
@@ -389,6 +621,12 @@
                     firstName = session.user.email.split('@')[0];
                 }
                 const initial = firstName.charAt(0).toUpperCase();
+
+                // Update hero title - No personalization as requested
+                const heroTitle = document.querySelector('.hero-title');
+                if (heroTitle) {
+                    heroTitle.textContent = `Your Personal Math Solver`;
+                }
 
                 // Hide login link, show avatar container
                 document.getElementById('nav-login-btn').style.display = 'none';
@@ -399,7 +637,6 @@
                 const container = document.getElementById('nav-profile-container');
                 container.style.display = 'block';
 
-                // Fetch initial user data for sidebar history
                 fetchUserData(session.user.id);
 
                 // Handle Logout
@@ -429,7 +666,7 @@
 
                 if (error) {
                     console.error('Error saving message:', error);
-                    throw error; // Throw so caller can catch or wait
+                    throw error;
                 } else {
                     console.log('Message saved successfully!');
                     return data;
@@ -439,7 +676,6 @@
             // --- Load Session Logic ---
             window.loadSession = async function (sessionId, userId) {
                 try {
-                    // Close sidebar on mobile
                     const mainSidebar = document.getElementById('main-sidebar');
                     const sidebarOverlay = document.getElementById('sidebar-overlay');
                     if (window.innerWidth <= 768) {
@@ -447,21 +683,19 @@
                         if (sidebarOverlay) sidebarOverlay.classList.remove('active');
                     }
 
-                    // Fetch messages
                     const { data: messages, error } = await supabase
                         .from('messages')
                         .select('*')
                         .eq('session_id', sessionId)
-                        .order('created_at', { ascending: true }); // chronological order
+                        .order('created_at', { ascending: true });
 
                     if (error) throw error;
 
-                    currentSessionId = sessionId; // update active session
+                    currentSessionId = sessionId;
                     const chatMessages = document.getElementById('chat-messages');
-                    chatMessages.innerHTML = ''; // clear current view
+                    chatMessages.innerHTML = '';
 
                     if (messages && messages.length > 0) {
-                        // Get username if available
                         let userName = 'User';
                         const avatarImg = document.querySelector('#nav-user-avatar img');
                         if (avatarImg) userName = avatarImg.alt;
@@ -471,14 +705,16 @@
                         });
                     }
 
-                    // Show chat interface
                     const heroSection = document.querySelector('.hero');
                     const chatInterface = document.getElementById('chat-interface');
+                    const floatingWrapper = document.getElementById('floating-search-wrapper');
                     heroSection.style.display = 'none';
                     chatInterface.style.display = 'flex';
+                    if (floatingWrapper) floatingWrapper.style.display = 'flex';
                     isChatActive = true;
+                    // Hide attach buttons in chat mode
+                    document.querySelectorAll('.chat-attach-hide').forEach(el => el.classList.add('chat-attach-btn-hidden'));
 
-                    // Scroll to bottom
                     const scrollWrapper = document.getElementById('chat-interface');
                     scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
 
@@ -492,7 +728,6 @@
             const themeToggleBtn = document.getElementById('theme-toggle-btn');
             const themeIcon = themeToggleBtn ? themeToggleBtn.querySelector('.theme-icon') : null;
 
-            // Update UI based on current theme
             function updateThemeUI() {
                 if (!themeIcon) return;
                 const isDark = document.body.classList.contains('dark-theme');
@@ -514,7 +749,6 @@
             const profileContainer = document.getElementById('nav-profile-container');
             if (profileContainer) {
                 profileContainer.addEventListener('click', (e) => {
-                    // Only toggle on mobile (when window width is small)
                     if (window.innerWidth <= 768) {
                         profileContainer.classList.toggle('active');
                     }
@@ -537,18 +771,26 @@
             }
             searchInput.addEventListener('input', () => autoResize(searchInput));
 
-            // --- Professional Markdown-lite Formatter ---
+            // --- Suggestion Chips ---
+            const chips = document.querySelectorAll('.suggestion-chip');
+            chips.forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const prompt = chip.dataset.prompt;
+                    if (prompt) {
+                        searchInput.value = prompt;
+                        autoResize(searchInput);
+                        searchInput.focus();
+                    }
+                });
+            });
+
+            // --- Markdown Formatter ---
             function formatMessage(text) {
                 if (!text) return "";
-                // Basic bold
                 text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                // Basic italic
                 text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-                // Inline code
                 text = text.replace(/`(.*?)`/g, '<code class="inline-code">$1</code>');
-                // Block code (simplified)
                 text = text.replace(/```([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>');
-                // Line breaks
                 text = text.replace(/\n/g, '<br>');
                 return text;
             }
@@ -568,6 +810,20 @@
                         <div class="message-content">
                             <div class="ai-name">Sphinx-SCA</div>
                             <div class="text-body">${text || ''}</div>
+                            <div class="message-actions">
+                                <button class="action-btn" data-action="copy" title="Copy">
+                                    <span class="material-symbols-outlined">content_copy</span>
+                                </button>
+                                <button class="action-btn" data-action="regenerate" title="Regenerate">
+                                    <span class="material-symbols-outlined">refresh</span>
+                                </button>
+                                <button class="action-btn" data-action="like" title="Like">
+                                    <span class="material-symbols-outlined">thumb_up_off_alt</span>
+                                </button>
+                                <button class="action-btn" data-action="dislike" title="Dislike">
+                                    <span class="material-symbols-outlined">thumb_down_off_alt</span>
+                                </button>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -585,7 +841,6 @@
 
                 chatMessages.appendChild(msgDiv);
 
-                // Auto-scroll the chat
                 const scrollWrapper = document.getElementById('chat-interface');
                 scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
 
@@ -628,31 +883,38 @@
             }
 
             async function handleSend() {
-                const msg = searchInput.value;
+                const chatInput = document.getElementById('chat-search-input');
+                const activeInput = isChatActive && chatInput ? chatInput : searchInput;
+                const msg = activeInput.value;
                 if (!msg.trim() && !selectedImageFile) return;
 
                 let finalMsg = msg || "Solve this math problem from the image.";
                 let attachedImageUrl = null;
 
-                // Capture local preview URL for immediate display in chat if Supabase fails or takes time
                 if (selectedImageFile) {
                     attachedImageUrl = imagePreviewThumbnail.src;
                 }
 
-                // 1. UI Transition
+                // UI Transition
                 if (!isChatActive) {
                     isChatActive = true;
                     heroSection.classList.add('animate-out');
                     await new Promise(resolve => setTimeout(resolve, 400));
                     heroSection.style.display = 'none';
                     chatInterface.style.display = 'flex';
+                    // Show the floating input bar for chat mode
+                    const floatingWrapper = document.getElementById('floating-search-wrapper');
+                    if (floatingWrapper) floatingWrapper.style.display = 'flex';
+                    // Hide attach buttons in chat mode
+                    document.querySelectorAll('.chat-attach-hide').forEach(el => el.classList.add('chat-attach-btn-hidden'));
                 }
 
-                const sendBtnIcon = sendBtn.querySelector('.send-icon');
-                sendBtn.disabled = true;
+                const activeSendBtn = isChatActive ? (document.getElementById('chat-send-btn') || sendBtn) : sendBtn;
+                const sendBtnIcon = activeSendBtn.querySelector('.send-icon');
+                activeSendBtn.disabled = true;
                 sendBtnIcon.textContent = 'pending';
 
-                // 2. OCR Detection if image present
+                // OCR Detection if image present
                 if (selectedImageFile) {
                     try {
                         const formData = new FormData();
@@ -661,7 +923,7 @@
 
                         const origin = window.location.origin;
                         let OCR_URL = "https://sphinx-gpt-beta-production.up.railway.app/ocr";
-                        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+                        if (origin.includes('localhost') || origin.includes('127.0.0.1') || window.location.protocol === 'file:') {
                             OCR_URL = "http://localhost:8000/ocr";
                         }
 
@@ -673,12 +935,10 @@
 
                         if (ocrResult.success) {
                             finalMsg = ocrResult.raw_text || finalMsg;
-                            // Update to Supabase public URL for persistence
                             if (ocrResult.image_url) {
                                 attachedImageUrl = ocrResult.image_url;
                             }
                         } else {
-                            // Don't error out, still try to solve if user message exists
                             console.warn("OCR failed:", ocrResult.error);
                         }
                     } catch (err) {
@@ -686,27 +946,25 @@
                     }
                 }
 
-                // 3. Add User Message (Using blob URL first or Supabase URL if ready)
+                // Add User Message
                 addMessage(msg, 'user', attachedImageUrl);
                 await saveMessageToSupabase(msg || "📷 Image Message", 'user');
 
-                // Clear input and preview
-                searchInput.value = '';
-                autoResize(searchInput);
+                activeInput.value = '';
+                autoResize(activeInput);
                 removeImagePreview();
 
-                // 4. Connect to Backend for Solving
+                // Connect to Backend for Solving
                 try {
                     const origin = window.location.origin;
                     let API_URL = "https://sphinx-gpt-beta-production.up.railway.app";
-                    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+                    // Also handle file:// protocol for local testing by checking protocol or hostname
+                    if (origin.includes('localhost') || origin.includes('127.0.0.1') || window.location.protocol === 'file:') {
                         API_URL = "http://localhost:8000";
                     }
 
-                    // Build history
                     const historyForBackend = [];
                     const messageElements = chatMessages.querySelectorAll('.message');
-                    // Get recent history (last 10 messages)
                     const recentMsgs = Array.from(messageElements).slice(-10);
                     recentMsgs.forEach(el => {
                         const isUser = el.classList.contains('user-message');
@@ -719,7 +977,6 @@
                         }
                     });
 
-                    // Create AI message placeholder
                     const aiMsgDiv = addMessage("", 'ai');
                     const aiTextDiv = aiMsgDiv.querySelector('.text-body');
                     let fullAiResponse = "";
@@ -764,7 +1021,7 @@
                         }
                     }
 
-                    sendBtn.disabled = false;
+                    activeSendBtn.disabled = false;
                     sendBtnIcon.textContent = 'arrow_upward';
 
                     if (fullAiResponse) {
@@ -774,7 +1031,7 @@
 
                 } catch (error) {
                     console.error("Streaming error:", error);
-                    sendBtn.disabled = false;
+                    activeSendBtn.disabled = false;
                     sendBtnIcon.textContent = 'arrow_upward';
                     addMessage(`❌ Connection Failed: ${error.message}`, 'ai');
                 }
@@ -819,8 +1076,414 @@
                     comingSoonModal.style.display = 'none';
                 });
             }
+
+            // --- Math Toolbar Toggle ---
+            const mathToolbar = document.getElementById('math-toolbar');
+            const heroMathToggle = document.getElementById('math-keyboard-toggle');
+            const chatMathToggle = document.getElementById('chat-math-keyboard-toggle');
+
+            const toggleMathToolbar = () => {
+                const isVisible = mathToolbar.classList.toggle('visible');
+                heroMathToggle?.classList.toggle('active', isVisible);
+                chatMathToggle?.classList.toggle('active', isVisible);
+            };
+
+            if (heroMathToggle && mathToolbar) heroMathToggle.addEventListener('click', toggleMathToolbar);
+            if (chatMathToggle && mathToolbar) chatMathToggle.addEventListener('click', toggleMathToolbar);
+
+            // --- Math Symbol Insertion ---
+            const mathSymBtns = document.querySelectorAll('.math-sym-btn');
+            mathSymBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const insertText = btn.dataset.insert;
+                    const activeSearchInput = document.getElementById('chat-interface').style.display === 'none'
+                        ? document.getElementById('main-search-input')
+                        : document.getElementById('chat-search-input');
+
+                    if (!insertText || !activeSearchInput) return;
+
+                    const start = activeSearchInput.selectionStart;
+                    const end = activeSearchInput.selectionEnd;
+                    const before = activeSearchInput.value.substring(0, start);
+                    const after = activeSearchInput.value.substring(end);
+
+                    activeSearchInput.value = before + insertText + after;
+                    activeSearchInput.selectionStart = activeSearchInput.selectionEnd = start + insertText.length;
+                    activeSearchInput.focus();
+                    autoResize(activeSearchInput);
+                });
+            });
+
+            // --- Math Toolbar Tabs ---
+            const mathTabs = document.querySelectorAll('.math-tab');
+            const mathSymbolSets = {
+                popular: ['/', 'x^', 'x_', '√(', '∛(', 'log(', '∫', 'Σ', 'π', '∞', '+', '−', '×', '÷', '!', 'log(', 'ln(', 'x^2', 'x^(-1)', '(n choose k)', '∂', 'e^', 'e^(iπ)', '±'],
+                trig: ['sin(', 'cos(', 'tan(', 'sec(', 'csc(', 'cot(', 'arcsin(', 'arccos(', 'arctan(', 'sinh(', 'cosh(', 'tanh('],
+                calculus: ['∫', '∬', '∮', 'd/dx', '∂', '∂/∂x', 'lim', '→', 'Δ', '∇', 'dy/dx', "d²y/dx²"],
+                comparison: ['≥', '≤', '≠', '≈', '≡', '∝', '<', '>', '≫', '≪'],
+                sets: ['∈', '∉', '⊂', '⊃', '⊆', '⊇', '∩', '∪', '∅', 'ℝ', 'ℤ', 'ℕ', 'ℚ'],
+                arrows: ['→', '←', '↔', '⇒', '⇐', '⇔', '↑', '↓', '⟹', '⟸'],
+                greek: ['α', 'β', 'γ', 'δ', 'ε', 'θ', 'λ', 'μ', 'σ', 'τ', 'φ', 'ω', 'Ω', 'Δ', 'Γ', 'Θ', 'Λ', 'Φ', 'Ψ']
+            };
+
+            mathTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    mathTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    const category = tab.dataset.tab;
+                    const symbols = mathSymbolSets[category] || mathSymbolSets.popular;
+                    const grid = document.getElementById('math-symbols-grid');
+
+                    grid.innerHTML = symbols.map(sym => {
+                        const display = sym.length <= 3 ? sym : sym.replace('(', '');
+                        return `<button class="math-sym-btn" data-insert="${sym}" title="${sym}">${display}</button>`;
+                    }).join('');
+
+                    // Re-bind click events
+                    grid.querySelectorAll('.math-sym-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const insertText = btn.dataset.insert;
+                            const activeSearchInput = document.getElementById('chat-interface').style.display === 'none'
+                                ? document.getElementById('search-input')
+                                : document.getElementById('chat-search-input');
+
+                            if (!insertText || !activeSearchInput) return;
+                            const start = activeSearchInput.selectionStart;
+                            const end = activeSearchInput.selectionEnd;
+                            const before = activeSearchInput.value.substring(0, start);
+                            const after = activeSearchInput.value.substring(end);
+                            activeSearchInput.value = before + insertText + after;
+                            activeSearchInput.selectionStart = activeSearchInput.selectionEnd = start + insertText.length;
+                            activeSearchInput.focus();
+                            autoResize(activeSearchInput);
+                        });
+                    });
+                });
+            });
+
+            // --- Drag & Drop Zone ---
+            const dropZones = [
+                { zone: document.getElementById('drop-zone'), input: document.getElementById('drop-zone-input') },
+                { zone: document.getElementById('chat-drop-zone'), input: document.getElementById('chat-drop-zone-input') }
+            ];
+
+            dropZones.forEach(({ zone, input }) => {
+                if (!zone || !input) return;
+
+                zone.addEventListener('click', () => {
+                    input.click();
+                });
+
+                input.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        showImagePreview(file);
+                        zone.classList.add('has-file');
+                    }
+                });
+
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file) {
+                        showImagePreview(file);
+                        zone.classList.add('has-file');
+                    }
+                });
+            });
+
+            // --- Tools Button (replaced with full tools/calculator/modal logic) ---
+
+            // === Wire up floating chat input ===
+            const chatSearchInput = document.getElementById('chat-search-input');
+            const chatSendBtn = document.getElementById('chat-send-btn');
+
+            if (chatSearchInput) {
+                chatSearchInput.addEventListener('input', () => autoResize(chatSearchInput));
+                chatSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                    }
+                });
+            }
+
+            if (chatSendBtn) {
+                chatSendBtn.addEventListener('click', handleSend);
+            }
+
+            // === Calculator ===
+            let calcExpression = '';
+            const calcToggleBtn = document.getElementById('chat-calc-toggle');
+            const heroCalcToggle = document.getElementById('hero-calc-toggle');
+            const calculatorPanel = document.getElementById('calculatorPanel');
+            const calcCloseBtn = document.getElementById('calcCloseBtn');
+            const calcTabBasic = document.getElementById('calcTabBasic');
+
+            const toggleCalculator = () => {
+                calculatorPanel?.classList.toggle('open');
+            };
+
+            if (calcToggleBtn && calculatorPanel) calcToggleBtn.addEventListener('click', toggleCalculator);
+            if (heroCalcToggle && calculatorPanel) heroCalcToggle.addEventListener('click', toggleCalculator);
+
+            if (calcCloseBtn && calculatorPanel) {
+                calcCloseBtn.addEventListener('click', () => {
+                    calculatorPanel.classList.remove('open');
+                });
+            }
+            // Calculator button clicks via delegation
+            document.querySelector('.calc-grid')?.addEventListener('click', (e) => {
+                const btn = e.target.closest('.calc-btn');
+                if (!btn) return;
+
+                const val = btn.dataset.calc;
+                const display = document.getElementById('calcDisplay');
+
+                if (val === 'AC') {
+                    calcExpression = '';
+                    display.textContent = '0';
+                } else if (val === '⌫') {
+                    calcExpression = calcExpression.slice(0, -1);
+                    display.textContent = calcExpression || '0';
+                } else if (val === '=') {
+                    try {
+                        const expr = calcExpression.replace(/\^/g, '**').replace(/\(-\)/g, '-');
+                        const result = Function('"use strict"; return (' + expr + ')')();
+                        display.textContent = parseFloat(result.toFixed(10)).toString();
+                        calcExpression = display.textContent;
+                    } catch {
+                        display.textContent = 'Error';
+                        calcExpression = '';
+                    }
+                } else {
+                    calcExpression += val;
+                    display.textContent = calcExpression;
+                }
+            });
+
+            // Close tools dropdown logic removed - Tools are now direct buttons
+
+            // Create Graph → open modal
+            const toolCreateGraph = document.getElementById('tool-create-graph');
+
+
+            // Coming Soon for other tools
+            document.querySelectorAll('.tool-coming-soon').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    toolsDropdown?.classList.remove('open');
+                    showComingSoon(e);
+                });
+            });
+
+            // === Message Action Buttons (delegated) ===
+            chatMessages.addEventListener('click', (e) => {
+                const btn = e.target.closest('.action-btn');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const msgContent = btn.closest('.message-content');
+
+                if (action === 'copy') {
+                    const text = msgContent.querySelector('.text-body')?.innerText;
+                    if (text) {
+                        navigator.clipboard.writeText(text).then(() => {
+                            btn.classList.add('copied');
+                            const icon = btn.querySelector('.material-symbols-outlined');
+                            if (icon) icon.textContent = 'check';
+                            setTimeout(() => {
+                                btn.classList.remove('copied');
+                                if (icon) icon.textContent = 'content_copy';
+                            }, 1500);
+                        });
+                    }
+                } else if (action === 'regenerate') {
+                    const userMessages = document.querySelectorAll('.user-message');
+                    const lastUserMsg = userMessages[userMessages.length - 1]?.querySelector('.text-body')?.innerText;
+                    if (lastUserMsg) {
+                        const ci = document.getElementById('chat-search-input');
+                        if (ci) ci.value = lastUserMsg;
+                        handleSend();
+                    }
+                } else if (action === 'like') {
+                    btn.classList.toggle('liked');
+                    const icon = btn.querySelector('.material-symbols-outlined');
+                    if (icon) icon.textContent = btn.classList.contains('liked') ? 'thumb_up' : 'thumb_up_off_alt';
+                    // Remove dislike if active
+                    const dislikeBtn = btn.parentElement.querySelector('[data-action="dislike"]');
+                    if (dislikeBtn && dislikeBtn.classList.contains('disliked')) {
+                        dislikeBtn.classList.remove('disliked');
+                        const di = dislikeBtn.querySelector('.material-symbols-outlined');
+                        if (di) di.textContent = 'thumb_down_off_alt';
+                    }
+                } else if (action === 'dislike') {
+                    btn.classList.toggle('disliked');
+                    const icon = btn.querySelector('.material-symbols-outlined');
+                    if (icon) icon.textContent = btn.classList.contains('disliked') ? 'thumb_down' : 'thumb_down_off_alt';
+                    // Remove like if active
+                    const likeBtn = btn.parentElement.querySelector('[data-action="like"]');
+                    if (likeBtn && likeBtn.classList.contains('liked')) {
+                        likeBtn.classList.remove('liked');
+                        const li = likeBtn.querySelector('.material-symbols-outlined');
+                        if (li) li.textContent = 'thumb_up_off_alt';
+                    }
+                }
+            });
         });
     </script>
+    <!-- Graph-to-Chat Scripts -->
+    <script>
+        (function () {
+            var _graphBubbleCounter = 0;
+            var _isDraggableInitialized = false;
+
+            function dragElement(elmnt) {
+                var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                var handle = elmnt.querySelector('.drag-handle');
+                
+                if (handle) {
+                    handle.onmousedown = dragMouseDown;
+                } else {
+                    elmnt.onmousedown = dragMouseDown;
+                }
+
+                function dragMouseDown(e) {
+                    e = e || window.event;
+                    e.preventDefault();
+                    
+                    // Capture current position before switching to explicit top/left
+                    var rect = elmnt.getBoundingClientRect();
+                    elmnt.style.top = rect.top + "px";
+                    elmnt.style.left = rect.left + "px";
+                    elmnt.style.transform = 'none';
+                    elmnt.style.bottom = 'auto';
+                    elmnt.style.margin = '0'; // Remove any auto-centering margins
+
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    document.onmouseup = closeDragElement;
+                    document.onmousemove = elementDrag;
+                }
+
+                function elementDrag(e) {
+                    e = e || window.event;
+                    e.preventDefault();
+                    // calculate the new cursor position:
+                    pos1 = pos3 - e.clientX;
+                    pos2 = pos4 - e.clientY;
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    // set the element's new position:
+                    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                    // Important: disable default centering once dragged
+                    elmnt.style.transform = 'none';
+                    elmnt.style.bottom = 'auto';
+                }
+
+                function closeDragElement() {
+                    // stop moving when mouse button is released:
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                }
+            }
+
+            window.toggleGraphBar = function () {
+                var bar = document.getElementById('graph-input-bar');
+                if (!bar) return;
+
+                if (!_isDraggableInitialized) {
+                    dragElement(bar);
+                    _isDraggableInitialized = true;
+                }
+
+                var isVisible = bar.style.display === 'flex';
+                bar.style.display = isVisible ? 'none' : 'flex';
+                if (!isVisible) {
+                    setTimeout(function () {
+                        var fnInput = document.getElementById('fn-input');
+                        if (fnInput) { fnInput.focus(); fnInput.click(); }
+                    }, 100);
+                }
+            };
+
+            window.plotFnToChat = function () {
+                var fnInput = document.getElementById('fn-input');
+                var expr = fnInput.value.trim();
+                if (!expr) return;
+
+                document.getElementById('graph-input-bar').style.display = 'none';
+                fnInput.value = '';
+
+                // Transition to chat if not already there
+                var heroSection = document.querySelector('.hero');
+                var chatInterface = document.getElementById('chat-interface');
+                if (heroSection && heroSection.style.display !== 'none') {
+                    heroSection.style.display = 'none';
+                    if (chatInterface) chatInterface.style.display = 'flex';
+                    // Show the floating input bar for chat mode if it exists
+                    var floatingWrapper = document.getElementById('floating-search-wrapper');
+                    if (floatingWrapper) floatingWrapper.style.display = 'flex';
+                    
+                    // Mark chat as active
+                    if (window.hasOwnProperty('isChatActive')) window.isChatActive = true;
+                }
+
+                var bubbleId = 'ggb-bubble-' + (++_graphBubbleCounter);
+
+                var chatMessages = document.getElementById('chat-messages');
+                var msgDiv = document.createElement('div');
+                msgDiv.classList.add('message', 'ai-message');
+                msgDiv.innerHTML =
+                    '<div class="message-avatar">' +
+                    '<img src="logo.png" alt="AI">' +
+                    '</div>' +
+                    '<div class="message-content" style="max-width:600px; width:100%;">' +
+                    '<div class="ai-name">Sphinx-SCA</div>' +
+                    '<div style="padding:10px 14px; font-size:13px; font-family:monospace; color:#e94560;">\uD83D\uDCC8 f(x) = ' + expr + '</div>' +
+                    '<div style="border-radius:12px; overflow:hidden; border:1px solid #e0e0e0; background:#ffffff;">' +
+                    '<div id="' + bubbleId + '" style="width:100%; height:420px;"></div>' +
+                    '</div>' +
+                    '</div>';
+                chatMessages.appendChild(msgDiv);
+
+                var scrollWrapper = document.getElementById('chat-interface');
+                if (scrollWrapper) scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
+
+                setTimeout(function () {
+                    var container = document.getElementById(bubbleId);
+                    if (!container) return;
+
+                    var appletParams = {
+                        appName: 'graphing',
+                        width: container.offsetWidth || 560,
+                        height: 420,
+                        showToolBar: false,
+                        showAlgebraInput: true,
+                        showMenuBar: false,
+                        enableRightClick: false,
+                        appletOnLoad: function (api) {
+                            api.evalCommand('f(x) = ' + expr);
+                        }
+                    };
+
+                    var ggb = new GGBApplet(appletParams, true);
+                    ggb.inject(bubbleId);
+                }, 300);
+            };
+        })();
+    </script>
+
 </body>
 
 </html>
