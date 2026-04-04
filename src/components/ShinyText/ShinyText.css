@@ -1,6 +1,11 @@
 .shiny-text {
-  color: #b5b5b522;
-  background: linear-gradient(120deg, rgba(224, 112, 46, 0) 40%, rgba(224, 112, 46, 0.8) 50%, rgba(224, 112, 46, 0) 60%);
+  color: transparent;
+  background: linear-gradient(
+    120deg,
+    rgba(224, 112, 46, 0) 40%,
+    rgba(224, 112, 46, 0.9) 50%,
+    rgba(224, 112, 46, 0) 60%
+  );
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;

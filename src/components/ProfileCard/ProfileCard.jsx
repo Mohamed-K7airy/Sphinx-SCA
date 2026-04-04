@@ -215,6 +215,20 @@ const ProfileCardComponent = ({
     };
   }, [enableTilt, animationHandlers, handlePointerMove, handlePointerEnter, handlePointerLeave]);
 
+  useEffect(() => {
+    if (!enableMobileTilt || !animationHandlers) return;
+    
+    const handler = (e) => {
+      // Gamma: left to right (-90 to 90), Beta: front to back (-180 to 180)
+      const x = (clamp(e.gamma, -45, 45) / 45) * 50 + 50;
+      const y = (clamp(e.beta, -45, 45) / 45) * 50 + 50;
+      animationHandlers.updateCardTransform(x * (cardRef.current?.clientWidth / 100 || 1), y * (cardRef.current?.clientHeight / 100 || 1), cardRef.current, wrapRef.current);
+    };
+
+    window.addEventListener('deviceorientation', handler);
+    return () => window.removeEventListener('deviceorientation', handler);
+  }, [enableMobileTilt, animationHandlers]);
+
   const cardStyle = useMemo(
     () =>
     ({

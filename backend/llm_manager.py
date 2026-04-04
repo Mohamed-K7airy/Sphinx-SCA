@@ -127,7 +127,10 @@ def stream_chat(messages: list, temperature: float = 0.7):
         
         in_thinking = False
         for chunk in stream:
-            content = chunk.choices[0].delta.content
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            content = getattr(delta, 'content', None)
             if content:
                 if "<think>" in content:
                     in_thinking = True
@@ -520,9 +523,10 @@ def chat_with_math(message: str, math_result: dict, history: list = None) -> str
             for i, s in enumerate(steps)
         )
 
+    steps_text_block = f"Steps found:\n{steps_text}" if steps_text else ""
     context = f"""The user asked: "{message}"
 The math solver found the answer: {answer}
-{"Steps found:\n" + steps_text if steps_text else ""}
+{steps_text_block}
 
 Now respond as Sphinx-SCA naturally. Present the answer warmly with the steps. Encourage the user."""
 

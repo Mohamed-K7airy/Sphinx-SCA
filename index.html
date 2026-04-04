@@ -695,7 +695,7 @@
                         if (avatarImg) userName = avatarImg.alt;
 
                         messages.forEach(msg => {
-                            addMessage(msg.content, msg.sender, userName);
+                            addMessage(msg.content, msg.sender);
                         });
                     }
 
@@ -705,7 +705,7 @@
                     heroSection.style.display = 'none';
                     chatInterface.style.display = 'flex';
                     if (floatingWrapper) floatingWrapper.style.display = 'flex';
-                    isChatActive = true;
+                    window.isChatActive = true;
                     // Hide attach buttons in chat mode
                     document.querySelectorAll('.chat-attach-hide').forEach(el => el.classList.add('chat-attach-btn-hidden'));
 
@@ -756,7 +756,7 @@
             const sendBtn = document.getElementById('main-send-btn');
             const chatMessages = document.getElementById('chat-messages');
 
-            let isChatActive = false;
+            window.isChatActive = false;
 
             // Auto-resize textarea
             function autoResize(el) {
@@ -877,8 +877,9 @@
             }
 
             async function handleSend() {
+                if (window.isStreaming) return; // guard against multiple requests
                 const chatInput = document.getElementById('chat-search-input');
-                const activeInput = isChatActive && chatInput ? chatInput : searchInput;
+                const activeInput = window.isChatActive && chatInput ? chatInput : searchInput;
                 const msg = activeInput.value;
                 if (!msg.trim() && !selectedImageFile) return;
 
@@ -890,8 +891,8 @@
                 }
 
                 // UI Transition
-                if (!isChatActive) {
-                    isChatActive = true;
+                if (!window.isChatActive) {
+                    window.isChatActive = true;
                     heroSection.classList.add('animate-out');
                     await new Promise(resolve => setTimeout(resolve, 400));
                     heroSection.style.display = 'none';
@@ -903,9 +904,13 @@
                     document.querySelectorAll('.chat-attach-hide').forEach(el => el.classList.add('chat-attach-btn-hidden'));
                 }
 
-                const activeSendBtn = isChatActive ? (document.getElementById('chat-send-btn') || sendBtn) : sendBtn;
+                const activeSendBtn = window.isChatActive ? (document.getElementById('chat-send-btn') || sendBtn) : sendBtn;
+                const chatSendBtn = document.getElementById('chat-send-btn');
                 const sendBtnIcon = activeSendBtn.querySelector('.send-icon');
-                activeSendBtn.disabled = true;
+                
+                window.isStreaming = true;
+                sendBtn.disabled = true;
+                if (chatSendBtn) chatSendBtn.disabled = true;
                 sendBtnIcon.textContent = 'pending';
 
                 // OCR Detection if image present
@@ -942,7 +947,11 @@
 
                 // Add User Message
                 addMessage(msg, 'user', attachedImageUrl);
-                await saveMessageToSupabase(msg || "📷 Image Message", 'user');
+                try {
+                    await saveMessageToSupabase(msg || "📷 Image Message", 'user');
+                } catch (e) {
+                    console.warn("Could not save to Supabase history:", e);
+                }
 
                 activeInput.value = '';
                 autoResize(activeInput);
@@ -1015,7 +1024,9 @@
                         }
                     }
 
-                    activeSendBtn.disabled = false;
+                    window.isStreaming = false;
+                    sendBtn.disabled = false;
+                    if (chatSendBtn) chatSendBtn.disabled = false;
                     sendBtnIcon.textContent = 'arrow_upward';
 
                     if (fullAiResponse) {
@@ -1025,7 +1036,9 @@
 
                 } catch (error) {
                     console.error("Streaming error:", error);
-                    activeSendBtn.disabled = false;
+                    window.isStreaming = false;
+                    sendBtn.disabled = false;
+                    if (chatSendBtn) chatSendBtn.disabled = false;
                     sendBtnIcon.textContent = 'arrow_upward';
                     addMessage(`❌ Connection Failed: ${error.message}`, 'ai');
                 }
@@ -1139,7 +1152,7 @@
                         btn.addEventListener('click', () => {
                             const insertText = btn.dataset.insert;
                             const activeSearchInput = document.getElementById('chat-interface').style.display === 'none'
-                                ? document.getElementById('search-input')
+                                ? document.getElementById('main-search-input')
                                 : document.getElementById('chat-search-input');
 
                             if (!insertText || !activeSearchInput) return;
@@ -1165,8 +1178,11 @@
             dropZones.forEach(({ zone, input }) => {
                 if (!zone || !input) return;
 
-                zone.addEventListener('click', () => {
-                    input.click();
+                zone.addEventListener('click', (e) => {
+                    if (e.target === zone || e.target.closest('.upload-content')) {
+                        e.stopPropagation();
+                        input.click();
+                    }
                 });
 
                 input.addEventListener('change', (e) => {
@@ -1333,6 +1349,11 @@
                     }
                 }
             });
+
+            // Initial auto-resize
+            autoResize(searchInput);
+            const initialChatInput = document.getElementById('chat-search-input');
+            if (initialChatInput) autoResize(initialChatInput);
         });
     </script>
     <!-- Graph-to-Chat Scripts -->
@@ -1377,9 +1398,16 @@
                     pos2 = pos4 - e.clientY;
                     pos3 = e.clientX;
                     pos4 = e.clientY;
+
+                    // Clamp to viewport:
+                    const maxX = window.innerWidth - elmnt.offsetWidth;
+                    const maxY = window.innerHeight - elmnt.offsetHeight;
+                    const newLeft = Math.min(Math.max(elmnt.offsetLeft - pos1, 0), maxX);
+                    const newTop = Math.min(Math.max(elmnt.offsetTop - pos2, 0), maxY);
+
                     // set the element's new position:
-                    elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
-                    elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+                    elmnt.style.left = newLeft + "px";
+                    elmnt.style.top = newTop + "px";
                     // Important: disable default centering once dragged
                     elmnt.style.transform = 'none';
                     elmnt.style.bottom = 'auto';

@@ -61,10 +61,11 @@
 }
 
 .pc-card {
-  height: 80svh;
+  height: 540px;
   max-height: 540px;
   display: grid;
   aspect-ratio: 0.718;
+  width: calc(540px * 0.718);
   border-radius: var(--card-radius);
   position: relative;
   background-blend-mode: color-dodge, normal, normal, normal;

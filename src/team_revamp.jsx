@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import Lanyard from './components/Lanyard/Lanyard';
 import ProfileCard from './components/ProfileCard/ProfileCard';
 import ShinyText from './components/ShinyText/ShinyText';
-import BlurText from './components/BlurText/BlurText';
 
 const mohamedData = {
   id: 1,
@@ -254,7 +253,4 @@ const TeamRevamp = () => {
 
 
 
-const root = document.getElementById('team-revamp-root');
-if (root) {
-  ReactDOM.createRoot(root).render(<TeamRevamp />);
-}
+export default TeamRevamp;
