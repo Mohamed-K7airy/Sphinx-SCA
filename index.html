@@ -77,9 +77,9 @@
                     <span class="material-symbols-outlined">dashboard</span>
                     <span class="item-text">Dashboard</span>
                 </a>
-                <a href="about.html" class="sidebar-nav-item">
+                <a href="V2.0.html" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">info</span>
-                    <span class="item-text">About Us</span>
+                    <span class="item-text">Upcoming Features</span>
                 </a>
                 <a href="#" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">settings</span>
@@ -306,12 +306,14 @@
                                     <span class="material-symbols-outlined">calculate</span>
                                 </button>
                                 <button class="math-mode-btn" id="chat-math-keyboard-toggle" title="Symbols">
-                                    <span class="material-symbols-outlined dropdown-icon" style="font-size: 18px;">functions</span>
+                                    <span class="material-symbols-outlined dropdown-icon"
+                                        style="font-size: 18px;">functions</span>
                                     <span>Symbols</span>
                                 </button>
                                 <button class="math-mode-btn" id="tool-create-graph" onclick="toggleGraphBar()"
                                     title="Tools">
-                                    <span class="material-symbols-outlined dropdown-icon" style="font-size: 18px;">grid_view</span>
+                                    <span class="material-symbols-outlined dropdown-icon"
+                                        style="font-size: 18px;">grid_view</span>
                                     <span>Tools</span>
                                     <span class="material-symbols-outlined"
                                         style="font-size: 14px; margin-left: 2px;">expand_more</span>
@@ -1124,7 +1126,7 @@
 
             if (heroMathToggle && mathToolbar) heroMathToggle.addEventListener('click', toggleMathToolbar);
             if (chatMathToggle && mathToolbar) chatMathToggle.addEventListener('click', toggleMathToolbar);
-            
+
             const mathToolbarClose = document.getElementById('math-toolbar-close');
             if (mathToolbarClose) mathToolbarClose.addEventListener('click', closeMathToolbar);
 
