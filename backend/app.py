@@ -146,7 +146,11 @@ ip_requests = defaultdict(list)
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
-    client_ip = request.client.host
+    # Skip rate limiting for OPTIONS preflight requests
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
     now = time.time()
     
     # Clean up old requests
@@ -160,7 +164,8 @@ async def rate_limit_middleware(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS, # Restrict to allowed domains in production
+    allow_origins=ALLOWED_ORIGINS if "*" not in ALLOWED_ORIGINS else ["*"],
+    allow_credentials=True if "*" not in ALLOWED_ORIGINS else False, # Credentials not allowed with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )
