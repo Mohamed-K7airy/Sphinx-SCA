@@ -164,8 +164,8 @@ async def rate_limit_middleware(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS if "*" not in ALLOWED_ORIGINS else ["*"],
-    allow_credentials=True if "*" not in ALLOWED_ORIGINS else False, # Credentials not allowed with wildcard
+    allow_origins=["*"], # Allow all origins for the Beta phase to handle custom domains like chat.sphinxcs.online
+    allow_credentials=False, # Must be False when allow_origins is ["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
