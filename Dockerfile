@@ -19,5 +19,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Command to run the application using dynamic port for Railway
-CMD sh -c "uvicorn backend.app:app --host 0.0.0.0 --port ${PORT:-8000}"
+# Command to run the application (Uses os.environ.get('PORT') inside app.py)
+CMD ["python", "backend/app.py"]
