@@ -91,21 +91,41 @@ _memory   = MemoryManager()
 # BACKGROUND MEMORY HELPER
 # ═══════════════════════════════════════════════════════════════════
 
+# ✅ FIX (C-07): Use a single persistent background event loop instead of
+# creating a new thread + event loop for every memory task.
+_bg_loop: Optional[asyncio.AbstractEventLoop] = None
+_bg_thread: Optional[threading.Thread] = None
+_bg_lock = threading.Lock()
+
+def _get_background_loop() -> asyncio.AbstractEventLoop:
+    """Return the shared background event loop, starting it lazily."""
+    global _bg_loop, _bg_thread
+    if _bg_loop is not None and _bg_loop.is_running():
+        return _bg_loop
+    with _bg_lock:
+        if _bg_loop is not None and _bg_loop.is_running():
+            return _bg_loop
+        _bg_loop = asyncio.new_event_loop()
+        _bg_thread = threading.Thread(
+            target=_bg_loop.run_forever, daemon=True, name="study-memory-bg"
+        )
+        _bg_thread.start()
+    return _bg_loop
+
 def _fire_and_forget(coro):
     """
-    Runs an async coroutine from sync code without blocking the main thread.
-    Creates a new event loop in a separate background daemon thread.
+    Schedule an async coroutine on the shared background event loop.
+    No new thread or event loop is created per call.
     """
-    def _run():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    loop = _get_background_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    # Attach a callback to log any exceptions without blocking
+    def _on_done(fut):
         try:
-            loop.run_until_complete(coro)
+            fut.result()
         except Exception as e:
-            logger.warning(f"[Memory background task] {e}")
-        finally:
-            loop.close()
-    threading.Thread(target=_run, daemon=True).start()
+            logger.warning("[Memory background task] %s", e)
+    future.add_done_callback(_on_done)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -862,7 +882,7 @@ SESSION STATE:
         except Exception:
             difficulty = "medium"
 
-        update_session(session_id, {})
+        # ✅ FIX (M-04): Removed empty update_session(session_id, {}) — it did nothing
 
         context = {
             "session_id": session_id,

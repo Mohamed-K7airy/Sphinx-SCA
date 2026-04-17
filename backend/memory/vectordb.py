@@ -12,9 +12,14 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# ✅ FIX (C-05): Check for None before calling create_client
 try:
     from supabase import create_client, Client
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    else:
+        print("⚠️ SUPABASE_URL or SUPABASE_KEY not set. Memory persistent features are disabled.")
+        supabase = None
 except (ImportError, Exception) as e:
     print(f"⚠️ Supabase init failed: {e}. Memory persistent features are disabled.")
     supabase = None

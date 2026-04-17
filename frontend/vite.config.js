@@ -41,6 +41,17 @@ export default defineConfig({
                 target: 'http://localhost:8000',
                 changeOrigin: true,
                 secure: false,
+            },
+            // ✅ FIX (M-05): Add missing proxy routes
+            '/generate_title': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
+            },
+            '/admin': {
+                target: 'http://localhost:8000',
+                changeOrigin: true,
+                secure: false,
             }
         }
     },

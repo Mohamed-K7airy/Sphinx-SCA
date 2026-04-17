@@ -192,6 +192,7 @@ export async function handleSend() {
             : '';
 
     appState.isStreaming = true;
+    appState.currentSourcesJson = null;  // ✅ FIX (M-11): clear stale sources from previous messages
     if (sendBtn) sendBtn.disabled = true;
     if (chatSendBtn) chatSendBtn.disabled = true;
     if (sendBtnIcon) sendBtnIcon.textContent = 'pending';

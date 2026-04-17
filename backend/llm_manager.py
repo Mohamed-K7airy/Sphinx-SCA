@@ -150,6 +150,8 @@ async def _stream_chat_async(messages: list, temperature: float = 0.7):
             stream=True,
         )
 
+        # ✅ FIX (H-07): Robust thinking tag filtering that handles tags
+        # appearing in the same chunk as content text.
         in_thinking = False
         async for chunk in stream:
             if not chunk.choices:
@@ -157,14 +159,27 @@ async def _stream_chat_async(messages: list, temperature: float = 0.7):
             delta   = chunk.choices[0].delta
             content = getattr(delta, "content", None)
             if content:
-                if "<think>" in content:
-                    in_thinking = True
-                    continue
-                if "</think>" in content:
-                    in_thinking = False
-                    continue
-                if not in_thinking:
-                    yield content
+                # Process content that may contain <think>/<think> inline
+                while content:
+                    if in_thinking:
+                        end_idx = content.find("</think>")
+                        if end_idx != -1:
+                            in_thinking = False
+                            content = content[end_idx + len("</think>"):]
+                        else:
+                            content = ""  # Still in thinking, skip entire chunk
+                    else:
+                        start_idx = content.find("<think>")
+                        if start_idx != -1:
+                            # Yield text before the tag
+                            before = content[:start_idx]
+                            if before:
+                                yield before
+                            in_thinking = True
+                            content = content[start_idx + len("<think>"):]
+                        else:
+                            yield content
+                            content = ""
 
     except Exception as e:
         yield f"Error: {str(e)}"
@@ -580,7 +595,8 @@ async def chat(
         # Inject memory context into the final user message to avoid system role leakage
         messages[-1]["content"] = f"[System Context About User: {memory_context}]\n\n{message}"
 
-    response = _call_chat(messages, temperature=0.7)
+    # ✅ FIX (H-05/A-02): Wrap sync _call_chat in asyncio.to_thread to avoid blocking event loop
+    response = await asyncio.to_thread(_call_chat, messages, 0.7)
 
     # ✅ Memory: save this interaction in the background
     if memory_manager and user_id:
@@ -668,7 +684,8 @@ Do NOT just list the steps mechanically — weave them into a clear explanation.
 """
 
     messages = history + [{"role": "user", "content": context}]
-    response = _call_chat(messages, temperature=0.5)
+    # ✅ FIX (H-05/A-02): Wrap sync _call_chat in asyncio.to_thread
+    response = await asyncio.to_thread(_call_chat, messages, 0.5)
 
     # ✅ Memory: save this interaction in the background
     if memory_manager and user_id:

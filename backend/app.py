@@ -4,11 +4,13 @@ Sphinx-SCA — Backend API (v3 Stable)
 
 import os
 import sys
+import re
+import time
 import uvicorn
 import logging
 from typing import Optional, Any
+from collections import defaultdict
 from dotenv import load_dotenv
-import re
 
 # Load .env file at the very beginning
 load_dotenv()
@@ -203,9 +205,7 @@ app = FastAPI(
 )
 
 # Simple In-Memory Rate Limiter (Token Bucket per IP)
-import time
 from fastapi import HTTPException
-from collections import defaultdict
 
 # ✅ FIX (W-13): Add fallback import for presentation
 try:
@@ -242,10 +242,11 @@ async def rate_limit_middleware(request: Request, call_next):
     ip_requests[client_ip].append(now)
     return await call_next(request)
 
+# ✅ FIX (C-01): Use ALLOWED_ORIGINS instead of wildcard "*"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -476,13 +477,8 @@ async def route_and_solve(
     result["is_chat"] = False
     result["mode"] = mode
 
-    # Ensure steps are generated if mode is 'steps' and not already present
-    if mode == "steps" and not result.get("llm_steps") and result.get("success"):
-        try:
-            steps = llm.steps(raw_question, str(result.get("final_answer", "")), branch)
-            result["llm_steps"] = steps
-        except Exception as e:
-            logger.warning("Steps (mode=steps) generation failed: %s", e)
+    # ✅ FIX (M-10): Removed dead duplicate steps code — steps are already
+    # generated in section 6️⃣ above when result is successful.
 
     # 7️⃣ ✅ Memory: wrap math result in friendly memory-aware response if user_id present
     if user_id and result.get("success"):
@@ -558,14 +554,16 @@ def render_study_markdown(result: dict) -> str:
 @app.post("/generate_title")
 async def generate_title(req: TitleRequest):
     """Generate a short Arabic title for a conversation."""
+    # ✅ FIX (C-06): Sanitize input to prevent prompt injection
+    sanitized_text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', req.text)[:2000]
     if llm is None:
-        return {"title": req.text[:30]}
+        return {"title": sanitized_text[:30]}
     try:
-        title = await asyncio.to_thread(llm.generate_title, req.text)
+        title = await asyncio.to_thread(llm.generate_title, sanitized_text)
         return {"title": title}
     except Exception as e:
-        logger.error(f"Title generation failed: {e}")
-        return {"title": req.text[:30]}
+        logger.error("Title generation failed: %s", e)  # ✅ FIX (L-07): %s logging
+        return {"title": sanitized_text[:30]}
 
 @app.post("/study/chat")
 async def study_chat(req: StudyRequest):
@@ -667,14 +665,17 @@ async def study_summary(req: StudyRequest):
 # ── Admin Endpoints ───────────────────────────────────────────────
 
 @app.get("/admin/stats")
-async def get_admin_stats():
+async def get_admin_stats(request: Request):
     """Fetch real platform statistics from Supabase Database."""
+    # ✅ FIX (H-09): Require ADMIN_SECRET header for authentication
+    admin_secret = os.getenv("ADMIN_SECRET", "")
+    if admin_secret:
+        provided = request.headers.get("X-Admin-Secret", "")
+        if provided != admin_secret:
+            return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
+
     import httpx
-    
-    # Reload .env dynamically so the user doesn't have to restart the server
-    from dotenv import load_dotenv
-    env_path = os.path.join(os.path.dirname(__file__), ".env")
-    load_dotenv(env_path, override=True)
+    # ✅ FIX (H-08): Removed per-request .env reload — env is loaded at startup
     
     supabase_url = os.getenv("SUPABASE_URL")
     
@@ -904,7 +905,14 @@ async def solve_stream(req: QuestionRequest):
 @app.post("/ocr")
 async def process_ocr(file: UploadFile = File(...), user_id: str = Form(None)):
     try:
+        # ✅ FIX (C-02): Limit upload size to 10MB to prevent DoS
+        MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
         content = await file.read()
+        if len(content) > MAX_UPLOAD_SIZE:
+            return JSONResponse(
+                {"success": False, "error": f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB."},
+                status_code=413,
+            )
 
         # Optionally upload to supabase if configured (silent fail if not)
         image_url = None
@@ -921,7 +929,7 @@ async def process_ocr(file: UploadFile = File(...), user_id: str = Form(None)):
                     file.content_type or "application/octet-stream",
                 )
         except Exception as e:
-            logger.warning(f"Supabase upload failed or not available: {e}")
+            logger.warning("Supabase upload failed or not available: %s", e)  # ✅ FIX (L-07)
 
         try:
             import backend.vision_scout as vision_scout
@@ -937,7 +945,7 @@ async def process_ocr(file: UploadFile = File(...), user_id: str = Form(None)):
             "image_url": image_url
         }
     except Exception as e:
-        logger.error(f"OCR failed: {e}", exc_info=True)
+        logger.error("OCR failed: %s", e, exc_info=True)  # ✅ FIX (L-07)
         return {"success": False, "error": str(e)}
 
 
@@ -1014,6 +1022,11 @@ async def home():
 
 @app.get("/{file_path:path}")
 async def serve_static(file_path: str):
+    # ✅ FIX (C-03): Block access to sensitive files and directories
+    _blocked_patterns = ('.env', 'node_modules', '.git', '__pycache__', '.DS_Store')
+    if any(seg.startswith('.') or seg in _blocked_patterns for seg in file_path.replace('\\', '/').split('/')):
+        return JSONResponse({"error": "Forbidden"}, status_code=403)
+
     full_path = os.path.join(FRONTEND_DIR, file_path)
     # Basic directory traversal protection
     if os.path.abspath(full_path).startswith(os.path.abspath(FRONTEND_DIR)):

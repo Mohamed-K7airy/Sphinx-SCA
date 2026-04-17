@@ -13,6 +13,28 @@ import { supabase } from './supabaseClient.js';
 import { initMarkdown, formatMessage } from './lib/markdown.js';
 import { initCalculator, initMathToolbar, initGraph } from './lib/ui.js';
 
+// ✅ FIX (M-01, M-02): Define utility functions that were used but never imported
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function generateUUID() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+}
+
 // ── Search Sources Renderer ──────────────────────────────────
 function renderSearchSources(msgDiv, data) {
     if (!msgDiv || !data || !data.sources || data.sources.length === 0) return;
@@ -793,44 +815,51 @@ async function handleSend(type) {
         const response = await fetch(`${API_URL}/solve_stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: text || 'Solve this math problem from the image.', image_data: imageUrl, mode: state.currentMode, session_id: state.currentSessionId, user_id: state.currentUserId })
+            body: JSON.stringify({ question: text || 'Solve this math problem from the image.', image_data: imageUrl, mode: state.currentMode, session_id: state.currentSessionId, user_id: state.currentUserId, history: [] })
         });
+
+        // ✅ FIX (H-03): Check response status before reading body
+        if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let sourcesObj = null;
+        let buffer = '';  // ✅ FIX (H-10): SSE buffer for cross-chunk parsing
 
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-            lines.forEach(line => {
-                if (line.startsWith('data: ')) {
-                    const dataStr = line.slice(6).trim();
-                    if (dataStr === '[DONE]') return;
-                    try {
-                        const data = JSON.parse(dataStr);
-                        if (data.content) {
-                            if (data.content.includes('__SEARCH_SOURCES__')) {
-                                const match = data.content.match(/```json\n__SEARCH_SOURCES__\n([\s\S]*?)\n```/);
-                                if (match) sourcesObj = JSON.parse(match[1]);
-                                return;
-                            }
-                            if (!gotFirstToken) { gotFirstToken = true; aiTextDiv.querySelector('[data-role="skeleton"]')?.remove(); }
-                            fullResponse += data.content;
-                            if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
-                                fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
-                            }
-                            aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
-                            const wrapper = $('study-chat-messages-wrapper');
-                            wrapper.scrollTop = wrapper.scrollHeight;
+            buffer += decoder.decode(value, { stream: true });
+            let idx;
+            while ((idx = buffer.indexOf('\n')) !== -1) {
+                const line = buffer.slice(0, idx).trimEnd();
+                buffer = buffer.slice(idx + 1);
+                if (!line.startsWith('data:')) continue;
+                const dataStr = line.replace(/^data:\s*/, '').trim();
+                if (!dataStr || dataStr === '[DONE]') continue;
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.content) {
+                        if (data.content.includes('__SEARCH_SOURCES__')) {
+                            const match = data.content.match(/```json\n__SEARCH_SOURCES__\n([\s\S]*?)\n```/);
+                            if (match) sourcesObj = JSON.parse(match[1]);
+                            continue;
                         }
-                    } catch (e) { }
-                }
-            });
+                        if (!gotFirstToken) { gotFirstToken = true; aiTextDiv.querySelector('[data-role="skeleton"]')?.remove(); }
+                        fullResponse += data.content;
+                        if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
+                            fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
+                        }
+                        aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
+                        const wrapper = $('study-chat-messages-wrapper');
+                        if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+                    }
+                } catch (e) { /* partial JSON, ignore */ }
+            }
         }
         if (fullResponse) saveMessageToSupabase(fullResponse, 'ai');
     } catch (err) {
+        console.error('[Study stream] Error:', err);
         aiTextDiv.innerHTML = '<span style="color:var(--primary);">Error connecting to server. Please try again.</span>';
     } finally {
         state.isStreaming = false;
@@ -885,37 +914,38 @@ async function handleStudySend(text, imageUrl, type) {
             let fullResponse = '';
             let gotFirstToken = false;
             let sourcesObj = null;
+            let sseBuffer = '';  // ✅ FIX (H-10): SSE buffer for search stream
 
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
-                lines.forEach(line => {
-                    if (line.startsWith('data: ')) {
-                        const dataStr = line.slice(6).trim();
-                        if (dataStr === '[DONE]') return;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            if (data.content) {
-                                if (data.content.includes('__SEARCH_SOURCES__')) {
-                                    // Parse the JSON block
-                                    const match = data.content.match(/```json\n__SEARCH_SOURCES__\n([\s\S]*?)\n```/);
-                                    if (match) sourcesObj = JSON.parse(match[1]);
-                                    return;
-                                }
-                                if (!gotFirstToken) { gotFirstToken = true; aiTextDiv.querySelector('[data-role="skeleton"]')?.remove(); }
-                                fullResponse += data.content;
-                                if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
-                                    fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
-                                }
-                                aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
-                                const wrapper = $('study-chat-messages-wrapper');
-                                wrapper.scrollTop = wrapper.scrollHeight;
+                sseBuffer += decoder.decode(value, { stream: true });
+                let idx;
+                while ((idx = sseBuffer.indexOf('\n')) !== -1) {
+                    const line = sseBuffer.slice(0, idx).trimEnd();
+                    sseBuffer = sseBuffer.slice(idx + 1);
+                    if (!line.startsWith('data:')) continue;
+                    const dataStr = line.replace(/^data:\s*/, '').trim();
+                    if (!dataStr || dataStr === '[DONE]') continue;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        if (data.content) {
+                            if (data.content.includes('__SEARCH_SOURCES__')) {
+                                const match = data.content.match(/```json\n__SEARCH_SOURCES__\n([\s\S]*?)\n```/);
+                                if (match) sourcesObj = JSON.parse(match[1]);
+                                continue;
                             }
-                        } catch (e) { }
-                    }
-                });
+                            if (!gotFirstToken) { gotFirstToken = true; aiTextDiv.querySelector('[data-role="skeleton"]')?.remove(); }
+                            fullResponse += data.content;
+                            if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
+                                fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
+                            }
+                            aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
+                            const wrapper = $('study-chat-messages-wrapper');
+                            if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+                        }
+                    } catch (e) { /* partial JSON */ }
+                }
             }
 
             aiTextDiv.innerHTML = formatMessage(fullResponse);
@@ -996,7 +1026,15 @@ async function handleStudySend(text, imageUrl, type) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId })
             });
+
+            // ✅ FIX (H-03): Validate response before proceeding
+            if (!startRes.ok) {
+                throw new Error(`Study start failed: ${startRes.status}`);
+            }
             const startData = await startRes.json();
+            if (!startData.session_id) {
+                throw new Error('Study start returned no session_id');
+            }
 
             state.activeStudySessionId = startData.session_id;
             state.studyDifficulty = startData.difficulty || 'medium';

@@ -20,14 +20,16 @@ export function nowTimeLabel(d = new Date()) {
 }
 
 /** Auto-resize a textarea to fit its content (max 180px). */
-let _resizeTimeout;
+// ✅ FIX (M-09): Per-element debounce via WeakMap instead of shared global
+const _resizeTimeouts = new WeakMap();
 export function autoResize(el) {
     if (!el) return;
-    clearTimeout(_resizeTimeout);
-    _resizeTimeout = setTimeout(() => {
+    const prev = _resizeTimeouts.get(el);
+    if (prev) clearTimeout(prev);
+    _resizeTimeouts.set(el, setTimeout(() => {
         el.style.height = 'auto';
         el.style.height = Math.min(el.scrollHeight, 180) + 'px';
-    }, 30);
+    }, 30));
 }
 
 /** Escape a string for safe HTML insertion. */
