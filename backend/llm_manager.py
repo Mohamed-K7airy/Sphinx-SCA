@@ -744,7 +744,7 @@ class LLMManager:
             if last_msg:
                 try:
                     memory_context = await asyncio.wait_for(
-                        self.memory.get_context(user_id, last_msg), timeout=10.0
+                        self.memory.get_context(user_id, last_msg), timeout=45.0
                     )
                     if memory_context:
                         messages[-1]["content"] = f"[System Context About User: {memory_context}]\n\n{last_msg}"
