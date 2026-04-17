@@ -4,17 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log In | Sphinx-SCA</title>
-    <meta name="description" content="Log in to your Sphinx-SCA account to access your AI math solver and assistant.">
+    <title>Authentication | Sphinx-SCA</title>
+    <meta name="description" content="Log in or create your Sphinx-SCA account to access your AI math solver.">
     <link rel="icon" type="image/png" href="/logo.png">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
-        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
 
     <script>
         (function () {
@@ -29,113 +27,456 @@
 
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             background-color: var(--bg-primary);
-            padding: var(--space-5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow: hidden;
+            color: var(--text-primary);
+            position: relative;
+            padding: 20px;
         }
 
-        /* Auth Card Premium Styling */
-        .auth-card {
-            background: rgba(23, 23, 23, 0.7);
+        /* Background Blobs (Adapted to Sphinx-SCA colors) */
+        .blob {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: linear-gradient(180deg, rgba(217, 119, 87, 0.4) 0%, rgba(217, 119, 87, 0) 100%);
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: 0;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+
+        .blob-1 {
+            top: -200px;
+            left: -200px;
+            background: linear-gradient(180deg, rgba(196, 101, 74, 0.4) 0%, rgba(196, 101, 74, 0) 100%);
+        }
+
+        .blob-2 {
+            bottom: -300px;
+            right: -200px;
+            background: linear-gradient(180deg, rgba(217, 140, 87, 0.3) 0%, rgba(217, 140, 87, 0) 100%);
+            animation-delay: -5s;
+        }
+
+        .blob-3 {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(217, 119, 87, 0.1) 0%, rgba(0,0,0,0) 70%);
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 50px) scale(1.1); }
+        }
+
+        .auth-logo {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(217, 119, 87, 0.3));
+        }
+
+        .container {
+            position: relative;
+            width: 850px;
+            max-width: 100%;
+            min-height: 580px;
+            background: rgba(23, 23, 23, 0.4);
+            border-radius: 30px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(217, 119, 87, 0.1);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(217, 119, 87, 0.1);
-            /* Subtle orange border */
-            border-radius: 24px;
-            padding: 48px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-            width: 100%;
-            max-width: 440px;
-            text-align: center;
-            position: relative;
-            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            z-index: 10;
         }
 
-        .input-label {
-            display: block;
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--primary);
-            /* Use primary color for labels for high contrast */
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            text-align: left;
+        /* Light Mode Adjustments */
+        :root:not(.dark-theme) .container {
+            background: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(217, 119, 87, 0.2);
         }
 
-        .login-input {
-            width: 100%;
-            height: 54px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(45, 45, 45, 0.4);
-            color: var(--text-primary);
-            padding: 0 20px;
-            font-size: 15px;
-            transition: all 0.25s ease;
+        .form-container {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            transition: all 0.6s ease-in-out;
         }
 
-        .login-input:focus {
-            border-color: var(--primary);
-            background: rgba(45, 45, 45, 0.7);
-            box-shadow: 0 0 0 4px var(--primary-light);
+        .sign-in {
+            left: 0;
+            width: 50%;
+            z-index: 2;
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .container.active .sign-in {
+            transform: translateX(100%);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sign-up {
+            left: 0;
+            width: 50%;
+            opacity: 0;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .container.active .sign-up {
+            transform: translateX(100%);
+            opacity: 1;
+            z-index: 5;
+            pointer-events: auto;
+            animation: move 0.6s;
+        }
+
+        @keyframes move {
+            0%, 49.99% { opacity: 0; z-index: 1; }
+            50%, 100% { opacity: 1; z-index: 5; }
         }
 
         .oauth-container {
             display: flex;
-            gap: 16px;
+            gap: 15px;
             justify-content: center;
-            margin-bottom: 32px;
+            margin: 20px 0;
         }
 
         .oauth-btn {
-            width: 56px;
-            height: 56px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            /* High fidelity circular buttons */
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s ease;
             color: var(--text-secondary);
+        }
+        
+        :root:not(.dark-theme) .oauth-btn {
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
         .oauth-btn:hover {
+            background: var(--primary);
             border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            transform: translateY(-3px);
+            color: #fff;
+        }
+
+        .oauth-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .oauth-btn:hover svg path[fill="currentColor"] {
+            fill: #fff;
+        }
+
+        .toggle-container {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+            transition: all 0.6s ease-in-out;
+            border-radius: 150px 0 0 100px;
+            z-index: 1000;
+        }
+
+        .container.active .toggle-container {
+            transform: translateX(-100%);
+            border-radius: 0 150px 100px 0;
+        }
+
+        .toggle {
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: #fff;
+            position: relative;
+            left: -100%;
+            width: 200%;
+            transform: translateX(0);
+            transition: all 0.6s ease-in-out;
+            box-shadow: 0 0 30px var(--primary-glow-strong);
+        }
+
+        .container.active .toggle {
+            transform: translateX(50%);
+        }
+
+        .toggle-panel {
+            position: absolute;
+            width: 50%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 0 30px;
+            text-align: center;
+            top: 0;
+            transform: translateX(0);
+            transition: all 0.6s ease-in-out;
+        }
+
+        .toggle-left {
+            transform: translateX(-200%);
+        }
+
+        .container.active .toggle-left {
+            transform: translateX(0);
+        }
+
+        .toggle-right {
+            right: 0;
+            transform: translateX(0);
+        }
+
+        .container.active .toggle-right {
+            transform: translateX(200%);
+        }
+
+        .toggle-panel h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .toggle-panel p {
+            font-size: 14px;
+            font-weight: 400;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        form {
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 0 40px;
+            height: 100%;
+            text-align: center;
+            width: 100%;
+        }
+
+        form h2 {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 5px;
             color: var(--text-primary);
-            transform: scale(1.1) translateY(-2px);
-            box-shadow: 0 8px 24px rgba(217, 119, 87, 0.2);
-            background: rgba(217, 119, 87, 0.05);
         }
 
-        .oauth-icon {
-            width: 24px;
-            height: 24px;
-            transition: transform 0.3s ease;
+        form span.subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
-        .oauth-btn:hover .oauth-icon {
-            transform: scale(1.1);
+        .input-group {
+            background-color: rgba(45, 45, 45, 0.4);
+            margin: 8px 0;
+            padding: 0 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
         }
 
-        .auth-logo {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 24px;
-            object-fit: contain;
-            filter: drop-shadow(0 4px 12px rgba(217, 119, 87, 0.3));
+        :root:not(.dark-theme) .input-group {
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .input-group:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+            background-color: rgba(45, 45, 45, 0.7);
+        }
+        
+        :root:not(.dark-theme) .input-group:focus-within {
+            background-color: #fff;
+        }
+
+        .input-group .material-symbols-outlined {
+            color: var(--text-muted);
+            margin-right: 12px;
+            font-size: 20px;
+            transition: color 0.3s;
+        }
+
+        .input-group:focus-within .material-symbols-outlined {
+            color: var(--primary);
+        }
+
+        .input-group input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            height: 100%;
+            font-family: inherit;
+        }
+        
+        /* Fix Chrome/Webkit autofill white background */
+        .input-group input:-webkit-autofill,
+        .input-group input:-webkit-autofill:hover, 
+        .input-group input:-webkit-autofill:focus, 
+        .input-group input:-webkit-autofill:active {
+            transition: background-color 5000s ease-in-out 0s;
+            -webkit-text-fill-color: var(--text-primary) !important;
+        }
+
+        .input-group input::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .forgot-pass {
+            color: var(--primary);
+            font-size: 13px;
+            text-decoration: none;
+            margin: 10px 0 5px;
+            align-self: flex-end;
+            transition: opacity 0.3s;
+            font-weight: 600;
+        }
+
+        .forgot-pass:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+
+        .form-btn {
+            background: transparent;
+            color: var(--primary);
+            font-size: 14px;
+            padding: 12px 30px;
+            border: 2px solid var(--primary);
+            border-radius: 30px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-top: 15px;
+            width: 65%;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .form-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 100%;
+            background: var(--primary);
+            transition: all 0.4s ease;
+            z-index: -1;
+            border-radius: 30px;
+        }
+
+        .form-btn:hover {
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--primary-glow-strong);
+            border-color: var(--primary-hover);
+        }
+
+        .form-btn:hover::before {
+            width: 100%;
+            background: var(--primary-hover);
+        }
+        
+        .form-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .form-btn.hidden {
+            background-color: transparent;
+            border: 2px solid #fff;
+            color: #fff;
+            box-shadow: none;
+            width: auto;
+        }
+
+        .form-btn.hidden::before {
+            background: #fff;
+        }
+
+        .form-btn.hidden:hover {
+            color: var(--primary);
+            transform: translateY(-2px);
+            border-color: #fff;
+        }
+
+        .form-btn.hidden:hover::before {
+            width: 100%;
+        }
+
+        .mobile-toggle {
+            display: none;
+            color: var(--text-muted);
+            margin-top: 20px;
+            font-size: 14px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .mobile-toggle:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        
+        .error-message {
+            color: #EF4444; 
+            font-size: 13px; 
+            margin-top: 12px; 
+            display: none;
+            font-weight: 500;
         }
 
         .auth-header-links {
             position: absolute;
             top: 24px;
             left: 24px;
+            z-index: 100;
         }
 
         .back-home {
@@ -153,113 +494,70 @@
             transform: translateX(-2px);
         }
 
-        .form-title {
-            font-size: 26px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-            letter-spacing: -0.5px;
-        }
-
-        .form-subtitle {
-            font-size: 15px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            opacity: 0.8;
-        }
-
-        .input-group {
-            margin-bottom: 24px;
-            text-align: left;
-        }
-
-        .forgot-password {
-            display: block;
-            text-align: right;
-            color: var(--primary);
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: -12px;
-            margin-bottom: 24px;
-            transition: opacity 0.2s;
-        }
-
-        .forgot-password:hover {
-            opacity: 0.8;
-            text-decoration: underline;
-        }
-
-        .login-btn {
-            width: 100%;
-            height: 52px;
-            border-radius: 12px;
-            background: var(--primary);
-            color: white;
-            font-weight: 700;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(217, 119, 87, 0.3);
-        }
-
-        .login-btn:hover {
-            background: var(--primary-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(217, 119, 87, 0.4);
-        }
-
-        .auth-divider {
-            display: flex;
-            align-items: center;
-            margin: 32px 0;
-            color: var(--text-muted);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 1px;
-        }
-
-        .auth-divider::before,
-        .auth-divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .auth-divider span {
-            padding: 0 16px;
-        }
-
-        .auth-footer {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 16px;
-        }
-
-        .auth-footer a {
-            color: var(--primary);
-            font-weight: 700;
-            margin-left: 4px;
-            transition: color 0.2s;
-        }
-
-        .auth-footer a:hover {
-            color: var(--primary-hover);
-            text-decoration: underline;
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 0;
-                align-items: flex-start;
+        /* Responsiveness */
+        @media(max-width: 768px) {
+            .auth-header-links {
+                position: relative;
+                top: auto;
+                left: auto;
+                width: 100%;
+                max-width: 450px;
+                margin-bottom: 15px;
+                z-index: 100;
             }
 
-            .auth-card {
-                max-width: 100%;
-                min-height: 100vh;
-                border: none;
-                border-radius: 0;
-                padding: 80px 24px 40px;
+            .container {
+                width: 100%;
+                max-width: 450px;
+                min-height: 650px;
+                border-radius: 20px;
+            }
+            
+            .toggle-container {
+                display: none;
+            }
+            
+            .form-container {
+                width: 100%;
+                padding: 0 10px;
+                transition: none;
+            }
+            
+            .sign-up {
+                opacity: 0;
+                z-index: 1;
+                pointer-events: none;
+                transition: opacity 0.4s ease;
+            }
+            
+            .sign-in {
+                opacity: 1;
+                z-index: 5;
+                pointer-events: all;
+                transition: opacity 0.4s ease;
+            }
+
+            .container.active .sign-in {
+                transform: translateX(0);
+                opacity: 0;
+                z-index: 1;
+                pointer-events: none;
+            }
+            
+            .container.active .sign-up {
+                transform: translateX(0);
+                opacity: 1;
+                z-index: 5;
+                pointer-events: all;
+                animation: none;
+            }
+            
+            .mobile-toggle {
+                display: block;
+            }
+            
+            form {
+                padding: 30px 20px;
             }
         }
     </style>
@@ -271,74 +569,179 @@
             document.body.classList.add('dark-theme');
         }
     </script>
+    
+    <div class="auth-header-links">
+        <a href="/" class="back-home">
+            <span class="material-symbols-outlined">arrow_back</span>
+            Back
+        </a>
+    </div>
 
-    <div class="auth-card">
-        <div class="auth-header-links">
-            <a href="/" class="back-home">
-                <span class="material-symbols-outlined">arrow_back</span>
-                Back
-            </a>
+    <!-- Background Animated Blobs -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="container" id="container">
+        <!-- Sign Up Form -->
+        <div class="form-container sign-up">
+            <form id="signup-form">
+                <img src="/logo.png" alt="Sphinx-SCA" class="auth-logo">
+                <h2>Create Account</h2>
+                
+                <div class="oauth-container">
+                    <button class="oauth-btn" id="google-signup-btn" type="button" aria-label="Google" title="Google">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                    </button>
+                    <button class="oauth-btn" id="github-signup-btn" type="button" aria-label="GitHub" title="GitHub">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                    </button>
+                    <button class="oauth-btn" id="facebook-signup-btn" type="button" aria-label="Facebook" title="Facebook">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                        </svg>
+                    </button>
+                </div>
+                <span class="subtitle">OR USE YOUR EMAIL FOR REGISTRATION</span>
+                
+                <div class="input-group">
+                    <span class="material-symbols-outlined">person</span>
+                    <input type="text" id="signup-name" placeholder="Full Name" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-symbols-outlined">mail</span>
+                    <input type="email" id="signup-email" placeholder="Email Address" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-symbols-outlined">lock</span>
+                    <input type="password" id="signup-password" placeholder="Password" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-symbols-outlined">lock_reset</span>
+                    <input type="password" id="signup-confirm" placeholder="Confirm Password" required>
+                </div>
+                
+                <p id="signup-error" class="error-message"></p>
+                <button type="submit" class="form-btn">Sign Up</button>
+                <a href="#" class="mobile-toggle login-trigger">Already have an account? Sign In</a>
+            </form>
+        </div>
+        
+        <!-- Sign In Form -->
+        <div class="form-container sign-in">
+            <form id="login-form">
+                <img src="/logo.png" alt="Sphinx-SCA" class="auth-logo">
+                <h2>Welcome Back</h2>
+                
+                <div class="oauth-container">
+                    <button class="oauth-btn" id="google-login-btn" type="button" aria-label="Google" title="Google">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                    </button>
+                    <button class="oauth-btn" id="github-login-btn" type="button" aria-label="GitHub" title="GitHub">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                    </button>
+                    <button class="oauth-btn" id="facebook-login-btn" type="button" aria-label="Facebook" title="Facebook">
+                        <svg viewBox="0 0 24 24">
+                            <path fill="#1877F2" d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                        </svg>
+                    </button>
+                </div>
+                <span class="subtitle">OR LOG IN WITH EMAIL</span>
+                
+                <div class="input-group">
+                    <span class="material-symbols-outlined">mail</span>
+                    <input type="email" id="login-email" placeholder="Email Address" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-symbols-outlined">lock</span>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                </div>
+                
+                <a href="#" class="forgot-pass">Forgot Password?</a>
+                
+                <p id="login-error" class="error-message"></p>
+                <button type="submit" class="form-btn">Sign In</button>
+                <a href="#" class="mobile-toggle register-trigger">Don't have an account? Sign Up</a>
+            </form>
         </div>
 
-        <img src="/logo.png" alt="Sphinx-SCA" class="auth-logo">
-        <h2 class="form-title">Welcome Back</h2>
-        <p class="form-subtitle">Log in to your Sphinx-SCA account.</p>
-
-        <form id="login-form">
-            <div class="input-group">
-                <label class="input-label">Email Address</label>
-                <input type="email" id="login-email" class="login-input" placeholder="student@university.edu" required>
+        <!-- Overlay for transition -->
+        <div class="toggle-container">
+            <div class="toggle">
+                <div class="toggle-panel toggle-left">
+                    <h2>Welcome Back!</h2>
+                    <p>Enter your personal details to access all of Sphinx-SCA features.</p>
+                    <button class="form-btn hidden" id="login">Sign In</button>
+                </div>
+                <div class="toggle-panel toggle-right">
+                    <h2>Hello, Friend!</h2>
+                    <p>Register with your personal details to start solving math with AI.</p>
+                    <button class="form-btn hidden" id="register">Sign Up</button>
+                </div>
             </div>
-
-            <div class="input-group">
-                <label class="input-label">Password</label>
-                <input type="password" id="login-password" class="login-input" placeholder="••••••••" required>
-            </div>
-
-            <a href="#" class="forgot-password">Forgot Password?</a>
-
-            <button type="submit" class="login-btn">Log In</button>
-            <p id="login-error" style="color: #EF4444; font-size: 13px; margin-top: 12px; display: none;"></p>
-        </form>
-
-        <div class="auth-divider">
-            <span>OR CONTINUE WITH</span>
-        </div>
-
-        <div class="oauth-container">
-            <button class="oauth-btn" id="google-login-btn" type="button" aria-label="Google" title="Google">
-                <svg class="oauth-icon" viewBox="0 0 24 24">
-                    <path fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-            </button>
-
-            <button class="oauth-btn" id="github-login-btn" type="button" aria-label="GitHub" title="GitHub">
-                <svg class="oauth-icon" viewBox="0 0 24 24">
-                    <path fill="currentColor"
-                        d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                </svg>
-            </button>
-
-            <button class="oauth-btn" id="facebook-login-btn" type="button" aria-label="Facebook" title="Facebook">
-                <svg class="oauth-icon" viewBox="0 0 24 24">
-                    <path fill="#1877F2"
-                        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-            </button>
-        </div>
-
-        <div class="auth-footer">
-            Don't have an account? <a href="signup.html">Sign up</a>
         </div>
     </div>
 
+    <script>
+        // UI Interaction Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('container');
+            const registerBtn = document.getElementById('register');
+            const loginBtn = document.getElementById('login');
+            
+            // Check URL for mode
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('mode') === 'signup') {
+                container.classList.add("active");
+            }
+
+            // Desktop
+            registerBtn.addEventListener('click', () => {
+                container.classList.add("active");
+                // Update URL without reload
+                window.history.replaceState({}, '', '?mode=signup');
+            });
+
+            loginBtn.addEventListener('click', () => {
+                container.classList.remove("active");
+                // Update URL without reload
+                window.history.replaceState({}, '', '?mode=login');
+            });
+
+            // Mobile Triggers
+            const mobileLoginTriggers = document.querySelectorAll('.login-trigger');
+            const mobileRegisterTriggers = document.querySelectorAll('.register-trigger');
+
+            mobileRegisterTriggers.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    container.classList.add("active");
+                });
+            });
+
+            mobileLoginTriggers.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    container.classList.remove("active");
+                });
+            });
+        });
+    </script>
+    
     <script type="module">
         import { supabase } from './supabaseClient.js';
 
@@ -349,6 +752,7 @@
             }
         });
 
+        // Login Logic
         document.getElementById('login-form').addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -356,12 +760,12 @@
             const password = document.getElementById('login-password').value;
             const errorMsg = document.getElementById('login-error');
 
-            const btn = document.querySelector('.login-btn');
+            const btn = document.querySelector('.sign-in .form-btn');
             const originalText = btn.textContent;
             btn.textContent = 'Logging In...';
             btn.disabled = true;
-            //مجرد اختبار لعدد المستخدمين محدش يهتم بيها خالص   
-            // Optional Admin Account Bypass for prototype
+
+            // Optional Admin Account Bypass
             if (email.toLowerCase() === 'admin@sphinx-sca.com' && password === 'admin123') {
                 localStorage.setItem('admin_logged_in', 'true');
                 window.location.href = 'admin-dashboard.html';
@@ -383,6 +787,59 @@
                 window.location.href = 'dashboard.html';
             }
         });
+        
+        // Signup Logic
+        document.getElementById('signup-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const name = document.getElementById('signup-name').value;
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const confirm = document.getElementById('signup-confirm').value;
+            const errorMsg = document.getElementById('signup-error');
+
+            if (password !== confirm) {
+                errorMsg.textContent = "Passwords do not match!";
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            const btn = document.querySelector('.sign-up .form-btn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Creating Account...';
+            btn.disabled = true;
+
+            const { data, error } = await supabase.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    data: {
+                        name: name
+                    }
+                }
+            });
+
+            btn.textContent = originalText;
+            btn.disabled = false;
+
+            if (error) {
+                errorMsg.textContent = error.message;
+                errorMsg.style.display = "block";
+                return;
+            }
+
+            if (data.session) {
+                window.location.href = 'dashboard.html';
+            } else {
+                errorMsg.style.color = '#10B981';
+                errorMsg.textContent = "Success! Please check your email to verify your account.";
+                errorMsg.style.display = "block";
+                // Optionally auto switch to login
+                setTimeout(() => {
+                    document.getElementById('container').classList.remove("active");
+                }, 3000);
+            }
+        });
 
         // OAuth Logic
         async function handleOAuth(provider) {
@@ -399,9 +856,11 @@
             }
         }
 
-        document.getElementById('google-login-btn').addEventListener('click', () => handleOAuth('google'));
-        document.getElementById('github-login-btn').addEventListener('click', () => handleOAuth('github'));
-        document.getElementById('facebook-login-btn').addEventListener('click', () => handleOAuth('facebook'));
+        // Attach OAuth events for both forms
+        ['google', 'github', 'facebook'].forEach(provider => {
+            document.getElementById(`${provider}-login-btn`).addEventListener('click', () => handleOAuth(provider));
+            document.getElementById(`${provider}-signup-btn`).addEventListener('click', () => handleOAuth(provider));
+        });
     </script>
 </body>
 
