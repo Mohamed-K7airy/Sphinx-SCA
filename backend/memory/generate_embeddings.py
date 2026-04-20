@@ -1,28 +1,30 @@
 import asyncio
-import os
-from huggingface_hub import AsyncInferenceClient
-from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
 
-load_dotenv()
+# We load the model lazily so it doesn't block the application startup
+_model = None
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-_hf_client = AsyncInferenceClient(api_key=HF_TOKEN) if HF_TOKEN else AsyncInferenceClient()
+def _generate_sync(strings: list[str]):
+    """Generates embeddings synchronously using local model."""
+    global _model
+    if _model is None:
+        print("⏳ Loading local embedding model (SentenceTransformer) for the first time...")
+        _model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        print("✅ Local embedding model loaded!")
+        
+    embeddings = _model.encode(strings)
+    # convert numpy array to normal python list
+    return embeddings.tolist()
 
 async def generate_embeddings(strings: list[str]):
-    # Feature extraction automatically routes to the right HF backend
-    result = await _hf_client.feature_extraction(
-        strings, 
-        model="sentence-transformers/all-MiniLM-L6-v2"
-    )
+    if not strings:
+        return []
+        
+    # Run the CPU-bound embedding generation in a separate thread
+    # so we don't block the FastAPI async loop and responses.
+    embeddings = await asyncio.to_thread(_generate_sync, strings)
     
-    # Convert result to list of lists of floats
-    if hasattr(result, 'tolist'):
-        embeddings = result.tolist()
-    else:
-        embeddings = result
-    
-    # Ensure it's always a list of lists (if a single string was passed, it might be 1D)
+    # Ensure it's always a list of lists (handling single vs multiple strings)
     if len(embeddings) > 0 and not isinstance(embeddings[0], list):
         embeddings = [embeddings]
         

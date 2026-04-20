@@ -1409,16 +1409,6 @@ function addMessage(text, sender, imageUrl = null) {
     return msgDiv;
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-
-function generateUUID() { return crypto.randomUUID(); }
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 // ── Tools, Notes, Timer — unchanged ──────────────────────────
 
 function initModals() {
@@ -1686,7 +1676,7 @@ function updateTimerUI() {
 
 // ── Bootstrap ─────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
+function bootstrapApp() {
     initMarkdown();
     initAuthAndHistory();
     initImageUpload();
@@ -1708,10 +1698,17 @@ document.addEventListener('DOMContentLoaded', () => {
         studyOverlay.classList.add('active');
     }
 
+
     setTimeout(() => { if (!state.isChatActive) { state.currentMode = 'study'; syncModeUI('study'); } }, 100);
 
     // Load global (default-session) notes/tasks for the initial hero view.
     if (!urlParamsObj.get('session')) {
         loadSessionData('default');
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+    bootstrapApp();
+}

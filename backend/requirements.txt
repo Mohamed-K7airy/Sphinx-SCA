@@ -12,3 +12,4 @@ supabase==2.0.0
 typing_extensions
 huggingface-hub
 tavily-python
+sentence-transformers
