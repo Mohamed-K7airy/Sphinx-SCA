@@ -141,14 +141,35 @@ async function fetchUserData(userId) {
                     
                     optsBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        // Close any other open menus
                         document.querySelectorAll('.history-options-menu.active').forEach(m => {
-                            if (m !== optsMenu) m.classList.remove('active');
+                            if (m !== optsMenu) {
+                                m.classList.remove('active');
+                                m.style.position = '';
+                                m.style.top = '';
+                                m.style.left = '';
+                            }
                         });
                         document.querySelectorAll('.history-options-btn.active').forEach(b => {
                             if (b !== optsBtn) b.classList.remove('active');
                         });
-                        optsMenu.classList.toggle('active');
+                        
+                        const isActive = optsMenu.classList.toggle('active');
                         optsBtn.classList.toggle('active');
+                        
+                        if (isActive) {
+                            const rect = optsBtn.getBoundingClientRect();
+                            optsMenu.style.position = 'fixed';
+                            optsMenu.style.top = (rect.bottom + 4) + 'px';
+                            optsMenu.style.left = (rect.left - 130) + 'px';
+                            optsMenu.style.right = 'auto';
+                            optsMenu.style.zIndex = '99999';
+                        } else {
+                            optsMenu.style.position = '';
+                            optsMenu.style.top = '';
+                            optsMenu.style.left = '';
+                            optsMenu.style.right = '';
+                        }
                     });
                     
                     optsMenu.addEventListener('click', async (e) => {
@@ -158,6 +179,10 @@ async function fetchUserData(userId) {
                         
                         const action = actionBtn.dataset.action;
                         optsMenu.classList.remove('active');
+                        optsMenu.style.position = '';
+                        optsMenu.style.top = '';
+                        optsMenu.style.left = '';
+                        optsMenu.style.right = '';
                         optsBtn.classList.remove('active');
                         
                         let currentMeta = {};
@@ -307,7 +332,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Close context menus on click outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.history-item')) {
-            document.querySelectorAll('.history-options-menu.active').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.history-options-menu.active').forEach(m => {
+                m.classList.remove('active');
+                m.style.position = '';
+                m.style.top = '';
+                m.style.left = '';
+                m.style.right = '';
+            });
             document.querySelectorAll('.history-options-btn.active').forEach(b => b.classList.remove('active'));
         }
     });

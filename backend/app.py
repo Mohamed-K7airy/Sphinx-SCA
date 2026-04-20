@@ -569,21 +569,21 @@ async def generate_title(req: TitleRequest):
 async def study_chat(req: StudyRequest):
     """Casual chat — no graph, direct LLM."""
     agent = get_study_agent()
-    result = await asyncio.to_thread(agent.chat, req.question)
+    result = await agent.chat(req.question, user_id=req.user_id or "")
     return result
 
 @app.post("/study/explain")
 async def study_explain(req: StudyRequest):
     """Explain a concept — direct LLM, no graph."""
     agent = get_study_agent()
-    result = await asyncio.to_thread(agent.explain, req.question, req.branch)
+    result = await agent.explain(req.question, req.branch, user_id=req.user_id or "")
     return result
 
 @app.post("/study/help")
 async def study_help(req: StudyRequest):
     """Help confused user — direct LLM, no graph."""
     agent = get_study_agent()
-    result = await asyncio.to_thread(agent.help_user, req.question, req.branch)
+    result = await agent.help_user(req.question, req.branch, user_id=req.user_id or "")
     return result
 
 @app.post("/study/classify")

@@ -613,6 +613,13 @@
                         style="max-height: 200px; overflow-y: auto; padding-right: 5px;">
                     </ul>
                 </li>
+                <!-- Archived Chats Section -->
+                <li class="sidebar-item">
+                    <div class="sidebar-title" style="padding: 15px 24px 5px; margin:0;">Archived Chats</div>
+                    <ul class="sidebar-menu" id="archived-history-list"
+                        style="max-height: 200px; overflow-y: auto; padding-right: 5px;">
+                    </ul>
+                </li>
                 <li class="sidebar-item">
                     <a href="#" class="sidebar-link" id="saved-solutions-btn">
                         <span class="material-symbols-outlined">folder</span>
@@ -859,10 +866,17 @@
 
                     const recentActivityList = document.getElementById('recent-activity-list');
                     const chatHistoryList = document.getElementById('chat-history-list');
+                    const archivedHistoryList = document.getElementById('archived-history-list');
 
                     if (uniqueSessions.length > 0) {
                         if (recentActivityList) recentActivityList.innerHTML = '';
                         if (chatHistoryList) chatHistoryList.innerHTML = '';
+                        if (archivedHistoryList) archivedHistoryList.innerHTML = '';
+
+                        let activeCount = 0;
+                        let archivedCount = 0;
+                        let sessionMeta = {};
+                        try { sessionMeta = JSON.parse(localStorage.getItem('chat_session_meta') || '{}'); } catch(e){}
 
                         uniqueSessions.forEach((sessionMsg, index) => {
                             const dateObj = new Date(sessionMsg.created_at);
@@ -887,31 +901,56 @@
                                 recentActivityList.appendChild(li);
                             }
 
-                            if (index < 15 && chatHistoryList) {
-                                //khairy update from 719 and  722 to 731
-                                //(اضافة خاصية محادثات مود المذاكرة + خاصية الملاحظات والتاسكات )
-                                const isStudy = studySessionMap[sessionMsg.session_id] === 'study';
-                                const liHistory = document.createElement('li');
-                                liHistory.className = 'sidebar-item';
-                                if (isStudy) {
-                                    // Study Mode session → always go to study-mode.html
-                                    liHistory.innerHTML = `
-                                        <a href="/study-mode.html?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
-                                            <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary);">school</span>
-                                            <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
-                                        </a>
-                                    `;
-                                } else {
-                                    // Normal chat → open in main page
-                                    liHistory.innerHTML = `
-                                        <a href="/?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
-                                            <span class="material-symbols-outlined" style="font-size: 16px;">forum</span>
-                                            <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
-                                        </a>
-                                    `;
+                            const meta = sessionMeta[sessionMsg.session_id] || {};
+                            const displayName = meta.name || sessionMsg.content;
+                            const isStudy = studySessionMap[sessionMsg.session_id] === 'study';
+                            
+                            if (meta.archived) {
+                                if (archivedCount < 15 && archivedHistoryList) {
+                                    const liHistory = document.createElement('li');
+                                    liHistory.className = 'sidebar-item';
+                                    if (isStudy) {
+                                        liHistory.innerHTML = `
+                                            <a href="/study-mode.html?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
+                                                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary);">school</span>
+                                                <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
+                                            </a>
+                                        `;
+                                    } else {
+                                        liHistory.innerHTML = `
+                                            <a href="/?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
+                                                <span class="material-symbols-outlined" style="font-size: 16px;">forum</span>
+                                                <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
+                                            </a>
+                                        `;
+                                    }
+                                    liHistory.querySelector('.history-content-text').textContent = displayName;
+                                    archivedHistoryList.appendChild(liHistory);
+                                    archivedCount++;
                                 }
-                                liHistory.querySelector('.history-content-text').textContent = sessionMsg.content;
-                                chatHistoryList.appendChild(liHistory);
+                            } else {
+                                if (activeCount < 15 && chatHistoryList) {
+                                    const liHistory = document.createElement('li');
+                                    liHistory.className = 'sidebar-item';
+                                    if (isStudy) {
+                                        liHistory.innerHTML = `
+                                            <a href="/study-mode.html?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
+                                                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary);">school</span>
+                                                <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
+                                            </a>
+                                        `;
+                                    } else {
+                                        liHistory.innerHTML = `
+                                            <a href="/?session=${sessionMsg.session_id}" class="sidebar-link" style="padding: 8px 16px; font-size: 13px;">
+                                                <span class="material-symbols-outlined" style="font-size: 16px;">forum</span>
+                                                <span class="history-content-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0;"></span>
+                                            </a>
+                                        `;
+                                    }
+                                    liHistory.querySelector('.history-content-text').textContent = displayName;
+                                    chatHistoryList.appendChild(liHistory);
+                                    activeCount++;
+                                }
                             }
                         });
                     } else {
@@ -920,6 +959,21 @@
                         }
                         if (chatHistoryList) {
                             chatHistoryList.innerHTML = '<li class="sidebar-item"><span style="padding: 12px 16px; font-size: 13px; color: var(--text-muted); display: block;">No chats yet</span></li>';
+                        }
+                        if (archivedHistoryList) {
+                            archivedHistoryList.innerHTML = '<li class="sidebar-item"><span style="padding: 12px 16px; font-size: 13px; color: var(--text-muted); display: block;">No archived chats</span></li>';
+                        }
+                    }
+                    // Handle empty states if counts are 0
+                    if (uniqueSessions.length > 0) {
+                        let activeCountNodes = chatHistoryList ? chatHistoryList.querySelectorAll('li').length : 0;
+                        let archivedCountNodes = archivedHistoryList ? archivedHistoryList.querySelectorAll('li').length : 0;
+                        
+                        if (activeCountNodes === 0 && chatHistoryList) {
+                            chatHistoryList.innerHTML = '<li class="sidebar-item"><span style="padding: 12px 16px; font-size: 13px; color: var(--text-muted); display: block;">No chats yet</span></li>';
+                        }
+                        if (archivedCountNodes === 0 && archivedHistoryList) {
+                            archivedHistoryList.innerHTML = '<li class="sidebar-item"><span style="padding: 12px 16px; font-size: 13px; color: var(--text-muted); display: block;">No archived chats</span></li>';
                         }
                     }
                 } catch (err) {

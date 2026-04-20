@@ -105,7 +105,10 @@ def _get_background_loop() -> asyncio.AbstractEventLoop:
     with _bg_lock:
         if _bg_loop is not None and _bg_loop.is_running():
             return _bg_loop
-        _bg_loop = asyncio.new_event_loop()
+        if sys.platform == 'win32':
+            _bg_loop = asyncio.WindowsSelectorEventLoopPolicy().new_event_loop()
+        else:
+            _bg_loop = asyncio.new_event_loop()
         _bg_thread = threading.Thread(
             target=_bg_loop.run_forever, daemon=True, name="study-memory-bg"
         )
@@ -604,7 +607,7 @@ def _dispatch_tool(tool_name: str, arguments: dict, context: dict) -> dict:
     question   = context.get("question", "")
     branch     = context.get("branch", "algebra")
 
-    logger.info(f"[Agent] Calling tool: {tool_name} | args: {list(arguments.keys())}")
+    logger.info("[Agent] Calling tool: %s | args: %s", tool_name, list(arguments.keys()))
 
     if tool_name == "explain_concept":
         # ✅ FIX: If the LLM generated a specific math problem (different from
@@ -747,7 +750,7 @@ def _run_agent_loop(user_message: str, context: dict) -> dict:
     max_steps = 6
 
     for step in range(max_steps):
-        logger.info(f"[Agent Loop] Step {step + 1}")
+        logger.info("[Agent Loop] Step %d", step + 1)
 
         try:
             completion = groq_client.chat.completions.create(
@@ -758,7 +761,7 @@ def _run_agent_loop(user_message: str, context: dict) -> dict:
                 max_tokens=1000,
             )
         except Exception as e:
-            logger.error(f"[Agent] LLM call failed: {e}")
+            logger.error("[Agent] LLM call failed: %s", e)
             return {"success": False, "error": str(e)}
 
         assistant_msg = completion.choices[0].message
@@ -767,7 +770,7 @@ def _run_agent_loop(user_message: str, context: dict) -> dict:
         if _is_done(messages):
             final_text = assistant_msg.content or ""
             accumulated_result["agent_message"] = final_text
-            logger.info(f"[Agent] Done after {step + 1} steps")
+            logger.info("[Agent] Done after %d steps", step + 1)
             break
 
         if not assistant_msg.tool_calls:
@@ -821,7 +824,7 @@ class StudyAgent:
         try:
             return await self.memory.get_context(user_id, query)
         except Exception as e:
-            logger.warning(f"[Memory] get_context failed: {e}")
+            logger.warning("[Memory] get_context failed: %s", e)
             return ""
 
     def _hints_remaining(self, session_id: str) -> int:
@@ -833,25 +836,52 @@ class StudyAgent:
     def classify_intent(self, text: str) -> str:
         return study_llm.classify_intent(text)
 
-    def chat(self, message: str) -> dict:
+    async def chat(self, message: str, user_id: str = "") -> dict:
+        memory_ctx = await self._get_memory_ctx(user_id, message)
+        response_text = study_llm.chat_casual(message, memory_ctx=memory_ctx)
+        
+        if user_id:
+            _fire_and_forget(self.memory.learn(user_id, [
+                {"role": "user", "content": message},
+                {"role": "assistant", "content": response_text}
+            ]))
+
         return {
             "success":          True,
             "intent":           "casual",
-            "display_markdown": study_llm.chat_casual(message),
+            "display_markdown": response_text,
         }
 
-    def explain(self, question: str, branch: str) -> dict:
+    async def explain(self, question: str, branch: str, user_id: str = "") -> dict:
+        memory_ctx = await self._get_memory_ctx(user_id, question)
+        response_text = study_llm.explain_topic(question, branch, memory_ctx=memory_ctx)
+        
+        if user_id:
+            _fire_and_forget(self.memory.learn(user_id, [
+                {"role": "user", "content": f"[Explain Concept] {question}"},
+                {"role": "assistant", "content": response_text}
+            ]))
+
         return {
             "success":          True,
             "intent":           "explain",
-            "display_markdown": study_llm.explain_topic(question, branch),
+            "display_markdown": response_text,
         }
 
-    def help_user(self, question: str, branch: str) -> dict:
+    async def help_user(self, question: str, branch: str, user_id: str = "") -> dict:
+        memory_ctx = await self._get_memory_ctx(user_id, question)
+        response_text = study_llm.help_response(question, branch, memory_ctx=memory_ctx)
+        
+        if user_id:
+            _fire_and_forget(self.memory.learn(user_id, [
+                {"role": "user", "content": f"[Help Request] {question}"},
+                {"role": "assistant", "content": response_text}
+            ]))
+
         return {
             "success":          True,
             "intent":           "help",
-            "display_markdown": study_llm.help_response(question, branch),
+            "display_markdown": response_text,
         }
 
     # ── Agent-based paths ─────────────────────────────────────────
@@ -904,7 +934,8 @@ SESSION STATE:
             "start", session_id, question, branch, difficulty, memory_ctx=memory_ctx
         )
 
-        result                    = _run_agent_loop(user_msg, context)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread to avoid blocking event loop
+        result                    = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"]      = session_id
         result["difficulty"]      = difficulty
         result["hints_remaining"] = self._hints_remaining(session_id)
@@ -986,66 +1017,104 @@ SESSION STATE:
 
     async def solve(self, session_id: str, question: str, branch: str,
                     user_id: str = "") -> dict:
+        # ✅ FIX (H-05): Check session existence
+        session = get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found."}
+        # ✅ FIX (C-02): Use session's stored question, not frontend's raw text
+        actual_question = session["question"]
+        actual_branch = session["branch"]
         context  = {"session_id": session_id, "user_id": user_id,
-                    "question": question, "branch": branch}
-        user_msg = self._build_user_message("solve", session_id, question, branch)
-        result               = _run_agent_loop(user_msg, context)
+                    "question": actual_question, "branch": actual_branch}
+        user_msg = self._build_user_message("solve", session_id, actual_question, actual_branch)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread
+        result               = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"] = session_id
         return result
 
     async def giveup(self, session_id: str, question: str, branch: str,
                      user_id: str = "") -> dict:
+        # ✅ FIX (H-05): Check session existence
+        session = get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found."}
+        # ✅ FIX (C-02): Use session's stored question
+        actual_question = session["question"]
+        actual_branch = session["branch"]
         context  = {"session_id": session_id, "user_id": user_id,
-                    "question": question, "branch": branch}
-        user_msg = self._build_user_message("giveup", session_id, question, branch)
-        result               = _run_agent_loop(user_msg, context)
+                    "question": actual_question, "branch": actual_branch}
+        user_msg = self._build_user_message("giveup", session_id, actual_question, actual_branch)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread
+        result               = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"] = session_id
         return result
 
     async def check(self, session_id: str, question: str, branch: str,
                     student_answer: str, correct_answer: str,
                     user_id: str = "") -> dict:
-        memory_ctx = await self._get_memory_ctx(user_id, question)
+        # ✅ FIX (H-05): Check session existence
+        session = get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found."}
+        # ✅ FIX (C-02): Use session's stored question
+        actual_question = session["question"]
+        actual_branch = session["branch"]
+        memory_ctx = await self._get_memory_ctx(user_id, actual_question)
         context    = {"session_id": session_id, "user_id": user_id,
-                      "question": question, "branch": branch, "memory_ctx": memory_ctx}
+                      "question": actual_question, "branch": actual_branch, "memory_ctx": memory_ctx}
         user_msg   = self._build_user_message(
-            "check", session_id, question, branch,
+            "check", session_id, actual_question, actual_branch,
             student_answer=student_answer,
             correct_answer=correct_answer,
             memory_ctx=memory_ctx,
         )
-        result                    = _run_agent_loop(user_msg, context)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread
+        result                    = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"]      = session_id
         result["hints_remaining"] = self._hints_remaining(session_id)
         return result
 
     async def next(self, session_id: str, question: str, branch: str,
                    user_id: str = "") -> dict:
+        # ✅ FIX (H-05): Check session existence
+        session = get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found."}
+        # ✅ FIX (C-02): Use session's stored question
+        actual_question = session["question"]
+        actual_branch = session["branch"]
         context  = {"session_id": session_id, "user_id": user_id,
-                    "question": question, "branch": branch}
-        user_msg = self._build_user_message("next", session_id, question, branch)
-        result               = _run_agent_loop(user_msg, context)
+                    "question": actual_question, "branch": actual_branch}
+        user_msg = self._build_user_message("next", session_id, actual_question, actual_branch)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread
+        result               = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"] = session_id
         return result
 
     async def next_harder(self, session_id: str, question: str, branch: str,
                           user_id: str = "") -> dict:
         """Fast path — no agent loop needed."""
-        practice = study_llm.generate_harder_practice(branch, question)
-
+        # ✅ FIX (H-05): Check session existence
         session = get_session(session_id)
-        if session:
-            update_session(session_id, {
-                "practice_problems": [{
-                    "question":   practice,
-                    "difficulty": "harder",
-                    "branch":     branch,
-                }]
-            })
+        if not session:
+            return {"success": False, "error": "Session not found."}
+        # ✅ FIX (C-02): Use session's stored question
+        actual_question = session["question"]
+        actual_branch = session["branch"]
+        # ✅ FIX (C-01): wrap sync LLM call in asyncio.to_thread
+        practice = await asyncio.to_thread(study_llm.generate_harder_practice, actual_branch, actual_question)
+
+        update_session(session_id, {
+            "practice_problems": [{
+                "question":   practice,
+                "difficulty": "harder",
+                "branch":     actual_branch,
+            }]
+        })
 
         if user_id:
             _fire_and_forget(_memory.learn(user_id, [
-                {"role": "user",      "content": f"[Harder] Original: {question} | Branch: {branch}"},
+                {"role": "user",      "content": f"[Harder] Original: {actual_question} | Branch: {actual_branch}"},
                 {"role": "assistant", "content": f"Harder practice: {practice}"},
             ]))
 
@@ -1059,13 +1128,22 @@ SESSION STATE:
 
     async def finish(self, session_id: str, question: str, branch: str,
                      user_id: str = "") -> dict:
+        # ✅ FIX (H-05): Check session existence
+        session = get_session(session_id)
+        if not session:
+            return {"success": False, "error": "Session not found.", "session_id": session_id}
+        # ✅ FIX (C-02): Use session's stored question
+        actual_question = session["question"]
+        actual_branch = session["branch"]
         context  = {"session_id": session_id, "user_id": user_id,
-                    "question": question, "branch": branch}
-        user_msg = self._build_user_message("summary", session_id, question, branch)
+                    "question": actual_question, "branch": actual_branch}
+        user_msg = self._build_user_message("summary", session_id, actual_question, actual_branch)
 
-        result               = _run_agent_loop(user_msg, context)
+        # ✅ FIX (C-01): wrap sync agent loop in asyncio.to_thread
+        result               = await asyncio.to_thread(_run_agent_loop, user_msg, context)
         result["session_id"] = session_id
 
+        # Re-fetch session in case the agent loop modified it
         session = get_session(session_id)
         if session:
             result["stats"] = {

@@ -176,7 +176,7 @@ class ValidationLayer:
         return pattern.sub(repl, text)
 
 
-# ─── RESPONSE PARSER ─────────────────────────────────────────────────────────
+# ─── RESPONSE PARSER ────────────────────────────────────────────────────────
 class ResponseParser:
     SOURCE_PATTERN = re.compile(r'\[([^\]]+)\]\((https?://[^\)]+)\)')
 

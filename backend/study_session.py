@@ -71,7 +71,7 @@ class StudySessionState(TypedDict):
 # ─────────────────────────────────────────────
 
 MAX_HINTS:           int = 3
-SESSION_TTL_MINUTES: int = 60
+SESSION_TTL_MINUTES: int = 180   # ✅ FIX (M-05): 60 was too short (Deep Focus = 45+15 = 60 min exactly)
 
 VALID_PHASES = ["explain", "socratic", "check", "practice", "summary"]
 

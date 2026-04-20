@@ -1100,7 +1100,8 @@ async function handleStudySend(text, imageUrl, type) {
             return;
         }
 
-        if (intent === 'explain' && !state.activeStudySessionId) {
+        // ✅ FIX (M-03): Handle explain/help both with and without active sessions
+        if (intent === 'explain') {
             const res = await fetch(`${API_URL}/study/explain`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId })
@@ -1108,19 +1109,24 @@ async function handleStudySend(text, imageUrl, type) {
             const data = await res.json();
             const content = extractContent(data);
             aiTextDiv.innerHTML = formatMessage(content);
+            // If we're in an active session, keep showing action buttons
+            if (state.activeStudySessionId) appendStudyActions(aiMsgDiv, 'active');
             saveMessageToSupabase(content, 'ai');
             state.isStreaming = false;
             return;
         }
 
-        if (intent === 'help' && !state.activeStudySessionId) {
+        if (intent === 'help') {
+            const helpQuestion = state.activeStudySessionId ? (state.studyOriginalQuestion || text) : text;
             const res = await fetch(`${API_URL}/study/help`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId })
+                body: JSON.stringify({ question: helpQuestion, branch: state.studyBranch, user_id: state.currentUserId })
             });
             const data = await res.json();
             const content = extractContent(data);
             aiTextDiv.innerHTML = formatMessage(content);
+            // If we're in an active session, keep showing action buttons
+            if (state.activeStudySessionId) appendStudyActions(aiMsgDiv, 'active');
             saveMessageToSupabase(content, 'ai');
             state.isStreaming = false;
             return;
@@ -1144,7 +1150,8 @@ async function handleStudySend(text, imageUrl, type) {
         // ── NEW SESSION ───────────────────────────────────────────
         if (!state.activeStudySessionId) {
             state.studyOriginalQuestion = text;
-            state.studyBranch = state.studyBranch || 'algebra';
+            // ✅ FIX (M-04): Auto-detect math branch from user input instead of always defaulting to 'algebra'
+            state.studyBranch = detectBranchLocal(text) || state.studyBranch || 'algebra';
             state.studyHintsUsed = 0;
             state.studyCorrectAnswer = '';   // will be fetched lazily
 
@@ -1268,15 +1275,44 @@ function classifyIntentLocal(text) {
     if (/search|ابحث|فيديو|youtube|video|find me videos|أخبار|news|who is|what.?s happening/.test(t)) return 'search';
 
     // Casual
-    if (/^(hi|hello|hey|مرحبا|اهلا|السلام|ازيك|صباح|مساء|شكرا|thanks|bye|كيفك|عامل ايه|how are you|who are you|what can you do)[\s!?.]*$/.test(t)) return 'casual';
+    if (/^(hi|hello|hey|مرحبا|اهلا|السلام|ازيك|صباح|مساء|شكرا|thanks|bye|كيفك|عامل ايه)[\s!?.]*$/.test(t)) return 'casual';
+    if (/about (me|you)|my name|who am i|do you know|tell me|what do you|who are you|how are you|what can you|عني|اسمي|من انا|هل تعرفني|ماذا تعرف|اخبرني|كيف حالك|من انت/.test(t)) return 'casual';
 
     // Math words (Arabic + English)
-    if (/solve|حل|factor|simplify|differentiate|integrate|calculate|find|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد/.test(t)) return 'study';
+    if (/solve|حل|factor|simplify|differentiate|integrate|calculate|find|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد|how many|how much|total|sum|difference|average|كم عدد|ما هو|ما مجموع|calculus|algebra|geometry|math|equation|derivative|integral|practice|problem|تفاضل|جبر|هندسة|رياضيات|مسألة/.test(t)) return 'study';
 
-    // Short text, no math → casual
-    if (t.length < 20 && !/[+\-*/=^()[\]{}]/.test(t)) return 'casual';
+    // Text with NO explicit math operators Defaults to Casual
+    // (This prevents text with digits like "I am 20 years old" from being falsely classified as math)
+    if (!/[+\-*/=^()[\]{}]/.test(t)) return 'casual';
 
     return 'study';
+}
+
+// ══════════════════════════════════════════════════════════════
+// ✅ FIX (M-04): LOCAL BRANCH DETECTOR
+// Auto-detects math branch from user input so the backend gets
+// accurate context instead of always defaulting to 'algebra'.
+// ══════════════════════════════════════════════════════════════
+function detectBranchLocal(text) {
+    const t = text.toLowerCase();
+
+    // Calculus keywords
+    if (/derivative|integral|integrate|differentiate|d\/dx|limit|lim|∫|∂|dy\/dx|تفاضل|تكامل|اشتق|calculus/.test(t)) return 'calculus';
+
+    // Trigonometry keywords
+    if (/sin|cos|tan|sec|csc|cot|trigonometry|trig|مثلث/.test(t)) return 'trigonometry';
+
+    // Geometry keywords
+    if (/triangle|circle|area|perimeter|volume|angle|polygon|radius|diameter|geometry|هندسة|مساحة|محيط/.test(t)) return 'geometry';
+
+    // Statistics keywords
+    if (/mean|median|mode|standard deviation|probability|variance|statistics|احتمال|إحصاء|متوسط/.test(t)) return 'statistics';
+
+    // Linear Algebra keywords
+    if (/matrix|matrices|determinant|eigenvalue|eigenvector|vector space|linear algebra|مصفوف/.test(t)) return 'linear_algebra';
+
+    // Default: return null (caller will use existing branch or fallback to 'algebra')
+    return null;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1311,7 +1347,12 @@ function appendStudyActions(aiMsgDiv, mode = 'active') {
                     const data = await res.json();
                     // FIX 1: use extractContent
                     const content = extractContent(data);
-                    state.studyHintsUsed = 3 - (data.hints_remaining ?? (3 - state.studyHintsUsed - 1));
+                    // ✅ FIX (C-05): Simple reliable hint counter — increment locally, sync from server if available
+                    if (typeof data.hints_remaining === 'number') {
+                        state.studyHintsUsed = 3 - data.hints_remaining;
+                    } else {
+                        state.studyHintsUsed = Math.min(state.studyHintsUsed + 1, 3);
+                    }
                     hintTextDiv.innerHTML = formatMessage(content || '💡 Think about the next step...');
                     appendStudyActions(hintMsgDiv, state.studyHintsUsed >= 3 ? 'hints-done' : 'active');
                     saveMessageToSupabase(content, 'ai');
@@ -1436,11 +1477,18 @@ async function handleNextProblem(btn, endpoint, API_URL) {
         nextTextDiv.innerHTML = formatMessage(content || 'Could not generate problem.');
         saveMessageToSupabase(content, 'ai');
 
-        if (data.practice_problem) {
-            state.studyOriginalQuestion = data.practice_problem;
+        // ✅ FIX (C-04): Extract clean problem text, stripping motivational lines and markdown formatting
+        // ✅ FIX (H-07): Always reset hints + correct answer on next problem, even if practice_problem field is missing
+        if (data.practice_problem || data.agent_message) {
+            const rawProblem = data.practice_problem || data.agent_message;
+            // Strip common motivational suffixes and emojis that the LLM adds
+            state.studyOriginalQuestion = rawProblem
+                .replace(/\n*[🔥🎯💪✨⚡🚀].+$/gm, '')  // Remove emoji-prefixed motivational lines
+                .replace(/\*\*$/gm, '')                      // Remove trailing bold markers
+                .trim();
             state.studyCorrectAnswer = '';   // reset for lazy fetch
-            state.studyHintsUsed = 0;
         }
+        state.studyHintsUsed = 0;  // Always reset hints for new problem
         appendStudyActions(nextMsgDiv, 'active');
     } catch (e) {
         nextTextDiv.innerHTML = 'Error getting next problem.';
@@ -1614,13 +1662,19 @@ function initStudyTools() {
         updateTimerUI();
     });
 
+    // ✅ FIX (H-01): Timer skip now works even when paused — directly completes the session
     skipBtn?.addEventListener('click', () => {
         if (state.isFreeTimer) {
             state.freeTimerElapsed = 0;
         } else {
-            // Toggle between work and break or just reset
+            clearInterval(state.timerInterval);
+            state.isRunning = false;
             state.timeRemaining = 0;
-            // The interval logic will handle session completion in the next tick
+            const playIcon = $('play-icon');
+            if (playIcon) playIcon.textContent = 'play_arrow';
+            if (typeof window.showAlertModal === 'function') {
+                window.showAlertModal('Timer Finished', 'Session skipped! Take a break.');
+            }
         }
         updateTimerUI();
     });
@@ -1703,6 +1757,17 @@ function initTasks() {
     // after session is known, so we just wire up the buttons here.
     $('task-add-btn')?.addEventListener('click', () => addTask());
     $('task-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
+    // ✅ FIX (L-04): Add missing clear tasks button handler
+    $('clear-tasks-btn')?.addEventListener('click', async () => {
+        const confirmed = (typeof window.showConfirmModal === 'function')
+            ? await window.showConfirmModal('Clear all tasks?')
+            : confirm('Clear all tasks?');
+        if (confirmed) {
+            state.tasks = [];
+            saveTasks();
+            renderTasks();
+        }
+    });
 }
 
 function addTask() {
@@ -1855,7 +1920,8 @@ function bootstrapApp() {
     }
 
 
-    setTimeout(() => { if (!state.isChatActive) { state.currentMode = 'study'; syncModeUI('study'); } }, 100);
+    // ✅ FIX (M-01): Set mode synchronously to avoid visual flash from 'General' → 'Study Agent'
+    if (!state.isChatActive) { state.currentMode = 'study'; syncModeUI('study'); }
 
     // Load global (default-session) notes/tasks for the initial hero view.
     if (!urlParamsObj.get('session')) {

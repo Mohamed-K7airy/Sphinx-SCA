@@ -95,10 +95,10 @@ def chat_persona(lang: str) -> str:
 # ═══════════════════════════════════════════════════════════════════
 
 TOKENS = {
-    "easy":   100,
-    "medium": 200,
-    "hard":   350,
-    "default": 200,
+    "easy":   200,     # ✅ FIX (M-06): was 100, too tight for LaTeX-heavy responses
+    "medium": 350,     # was 200
+    "hard":   500,     # was 350
+    "default": 300,    # was 200
 }
 
 
@@ -162,15 +162,17 @@ class StudyLLM:
             return "explain"
 
         # Casual greetings
-        if re.search(r'^(hi|hello|hey|مرحبا|اهلا|السلام|ازيك|صباح|مساء|شكرا|thanks|bye|كيفك|عامل ايه|how are you|who are you|what can you do)[\s!?.]*$', t):
+        if re.search(r'^(hi|hello|hey|مرحبا|اهلا|السلام|ازيك|صباح|مساء|شكرا|thanks|bye|كيفك|عامل ايه)[\s!?.]*$', t):
+            return "casual"
+        if re.search(r'(about me|about you|my name|who am i|do you know|tell me|what do you|who are you|how are you|what can you|عني|اسمي|من انا|هل تعرفني|ماذا تعرف|اخبرني|كيف حالك|من انت)', t):
             return "casual"
 
         # Math words (Arabic + English)
-        if re.search(r'(solve|حل|factor|simplify|differentiate|integrate|calculate|find|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد)', t):
+        if re.search(r'(solve|حل|factor|simplify|differentiate|integrate|calculate|find|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد|how many|how much|total|sum|difference|average|كم عدد|ما هو|ما مجموع|calculus|algebra|geometry|math|equation|derivative|integral|practice|problem|تفاضل|جبر|هندسة|رياضيات|مسألة)', t):
             return "study"
 
-        # Short text with no math → casual
-        if len(t) < 20 and not any(c in t for c in '+-*/=^()[]{}'):
+        # Text with NO explicit math operators Defaults to Casual
+        if not any(c in t for c in '+-*/=^()[]{}'):
             return "casual"
 
         return "study"
@@ -191,17 +193,22 @@ hard:   complex integrals, differential equations, multi-concept proofs""",
 
     # ── CASUAL CHAT ─────────────────────────────────────────────────
 
-    def chat_casual(self, message: str) -> str:
+    def chat_casual(self, message: str, memory_ctx: str = "") -> str:
         lang = detect_language(message)
-        return self._call(chat_persona(lang), message, temperature=0.7, max_tokens=200)
+        system = chat_persona(lang)
+        if memory_ctx:
+            system += f"\n\n[System Context About User: {memory_ctx}]\nUse this context silently to personalize your response. Do NOT acknowledge the context directly."
+        return self._call(system, message, temperature=0.7, max_tokens=200)
 
     # ── EXPLAIN (concept/theory questions) ─────────────────────────
 
-    def explain_topic(self, question: str, branch: str) -> str:
+    def explain_topic(self, question: str, branch: str, memory_ctx: str = "") -> str:
         lang = detect_language(question)
+        ctx_block = f"\n\nStudent Background (use subtly):\n{memory_ctx}" if memory_ctx else ""
         system = f"""{tutor_persona(lang)}
 
 The student wants a CONCEPT EXPLANATION (not problem solving).
+{ctx_block}
 
 Steps:
 1. Explain the concept clearly in 3-4 sentences
@@ -416,12 +423,13 @@ Do NOT include any answer or hint."""
 
     # ── HELP MODE ───────────────────────────────────────────────────
 
-    def help_response(self, question: str, branch: str) -> str:
+    def help_response(self, question: str, branch: str, memory_ctx: str = "") -> str:
         lang = detect_language(question)
-
+        ctx_block = f"\n\nStudent Background (use subtly):\n{memory_ctx}" if memory_ctx else ""
         system = f"""{tutor_persona(lang)}
 
 The student is CONFUSED. Be extra gentle.
+{ctx_block}
 
 Steps:
 1. Acknowledge that it's okay to be confused (1 sentence)
