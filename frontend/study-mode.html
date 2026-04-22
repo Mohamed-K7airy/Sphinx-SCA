@@ -8,6 +8,8 @@
     <meta name="description"
         content="Sphinx-SCA Study Mode — Focus timer, notes, and productivity tools to supercharge your study sessions.">
     <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -503,6 +505,15 @@
     </div>
 
     <script src="/study-mode.js" type="module"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
+    </script>
 </body>
 
 </html>

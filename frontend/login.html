@@ -7,6 +7,8 @@
     <title>Login | Sphinx-SCA</title>
     <meta name="description" content="Log in or create your Sphinx-SCA account to access your AI math solver.">
     <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -893,6 +895,15 @@
             document.getElementById(`${provider}-login-btn`).addEventListener('click', () => handleOAuth(provider));
             document.getElementById(`${provider}-signup-btn`).addEventListener('click', () => handleOAuth(provider));
         });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
     </script>
 </body>
 

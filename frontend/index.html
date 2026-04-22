@@ -8,6 +8,8 @@
     <meta name="description"
         content="Sphinx-SCA is a premium AI-powered math solver and assistant. Get instant solutions, step-by-step explanations, and smart tutoring.">
     <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,6 +91,10 @@
                 <a href="about.html" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">info</span>
                     <span class="item-text">About Us</span>
+                </a>
+                <a href="#" class="sidebar-nav-item" id="install-app-btn" style="display: none;">
+                    <span class="material-symbols-outlined">download</span>
+                    <span class="item-text">تثبيت التطبيق</span>
                 </a>
                 <a href="#" class="sidebar-nav-item">
                     <span class="material-symbols-outlined">settings</span>
@@ -474,6 +480,15 @@
 
     <!-- Frontend App (modular) -->
     <script type="module" src="/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
+    </script>
 
 </body>
 

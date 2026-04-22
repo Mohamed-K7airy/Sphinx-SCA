@@ -7,6 +7,8 @@
     <title>About Us | Sphinx-SCA</title>
     <meta name="description" content="Meet the team behind Sphinx-SCA — the AI-powered math solver built by passionate engineers.">
     <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3b82f6">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -208,6 +210,15 @@
                 });
             }
         });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.error('Service Worker registration failed', err));
+            });
+        }
     </script>
 </body>
 

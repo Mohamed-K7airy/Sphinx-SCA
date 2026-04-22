@@ -1,0 +1,25 @@
+{
+  "name": "sphinx-sca-app",
+  "version": "1.0.0",
+  "description": "Desktop and Mobile version of Sphinx-SCA",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "desktop": "electron .",
+    "build:desktop": "electron-builder",
+    "mobile:init": "cap init",
+    "mobile:sync": "cap sync",
+    "mobile:open:android": "cap open android",
+    "mobile:open:ios": "cap open ios"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "@capacitor/core": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/ios": "^5.0.0"
+  }
+}
