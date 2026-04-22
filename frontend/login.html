@@ -782,7 +782,7 @@
         // Check if user is already logged in
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/';
             }
         });
 
@@ -818,7 +818,7 @@
                 errorMsg.textContent = error.message;
                 errorMsg.style.display = "block";
             } else {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/';
             }
         });
 
@@ -863,7 +863,7 @@
             }
 
             if (data.session) {
-                window.location.href = 'dashboard.html';
+                window.location.href = '/';
             } else {
                 errorMsg.style.color = '#10B981';
                 errorMsg.textContent = "Success! Please check your email to verify your account.";
@@ -880,7 +880,7 @@
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: provider,
                 options: {
-                    redirectTo: window.location.origin + '/dashboard.html'
+                    redirectTo: window.location.origin + '/'
                 }
             });
 

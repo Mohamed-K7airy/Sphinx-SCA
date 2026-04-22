@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sphinx-SCA | The Ultimate AI Math Solver</title>
+    <link rel="icon" type="image/png" href="/logo.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Material Icons -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <link rel="stylesheet" href="/styles/style.css">
+
+    <!-- Inline styles for landing specific elements to ensure premium look -->
+    <style>
+        /* Landing Page Specific Styles */
+        :root {
+            --landing-gradient: linear-gradient(135deg, var(--primary) 0%, #ff9a7a 100%);
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            font-family: var(--font-family);
+        }
+
+        /* Navbar */
+        .landing-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4) var(--space-8);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(16px) saturate(1.4);
+            -webkit-backdrop-filter: blur(16px) saturate(1.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all var(--transition-base);
+        }
+
+        .dark-theme .landing-nav {
+            background: rgba(10, 10, 15, 0.85);
+            backdrop-filter: blur(16px) saturate(1.4);
+            -webkit-backdrop-filter: blur(16px) saturate(1.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: var(--space-6);
+            align-items: center;
+        }
+
+        .nav-links a {
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: color var(--transition-fast);
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .btn-unified {
+            position: relative;
+            background: transparent;
+            color: var(--primary) !important;
+            padding: var(--space-3) var(--space-6);
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s ease;
+            z-index: 1;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .btn-unified::before,
+        .btn-unified::after {
+            content: "";
+            position: absolute;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+            box-shadow: 0 0 8px rgba(217, 119, 87, 0.6);
+        }
+
+        .btn-unified::before {
+            top: 0;
+            left: 0;
+        }
+
+        .btn-unified::after {
+            bottom: 0;
+            right: 0;
+        }
+
+        .btn-unified:hover::before,
+        .btn-unified:hover::after {
+            width: 100%;
+        }
+
+        .btn-unified:hover {
+            color: #fff !important;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Theme Toggle */
+        .theme-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            transition: all var(--transition-fast);
+        }
+
+        .theme-toggle-btn:hover {
+            color: var(--primary);
+            background: rgba(217, 119, 87, 0.1);
+        }
+
+        /* Hero Section */
+        .landing-hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: var(--space-16) 8%;
+            position: relative;
+            margin: 0;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .hero-bg-image {
+            position: absolute;
+            top: 12%;
+            /* Keep head completely below the navbar */
+            right: -10%;
+            /* Move the image further to the right */
+            bottom: 0;
+            left: 0;
+            width: 110%;
+            /* Compensate width to allow rightward shift */
+            height: 88%;
+            object-fit: contain;
+            object-position: right bottom;
+            z-index: 0;
+            animation: subtleZoom 20s infinite alternate ease-in-out;
+            transform-origin: bottom right;
+        }
+
+        @keyframes subtleZoom {
+            0% {
+                transform: scale(1);
+            }
+
+            100% {
+                transform: scale(1.03);
+            }
+        }
+
+        .hero-bg-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-primary) 50%, transparent 85%),
+                linear-gradient(0deg, var(--bg-primary) 0%, transparent 15%, transparent 85%, var(--bg-primary) 100%);
+            z-index: 1;
+        }
+
+        .dark-theme .hero-bg-overlay {
+            background: linear-gradient(90deg, #0a0a0f 0%, #0a0a0f 50%, transparent 85%),
+                linear-gradient(0deg, #0a0a0f 0%, transparent 15%, transparent 85%, #0a0a0f 100%);
+        }
+
+        .hero-badge {
+            background: rgba(217, 119, 87, 0.15);
+            color: var(--primary);
+            padding: var(--space-1) var(--space-4);
+            border-radius: var(--radius-full);
+            font-size: var(--font-small);
+            font-weight: 600;
+            margin-bottom: var(--space-6);
+            border: 1px solid rgba(217, 119, 87, 0.3);
+            animation: fadeInDown 0.8s ease-out;
+            display: inline-block;
+        }
+
+        .hero-content {
+            flex: 1;
+            max-width: 750px;
+            text-align: left;
+            z-index: 2;
+            position: relative;
+            padding: 0;
+        }
+
+        .landing-hero h1 {
+            font-size: 64px;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: var(--space-6);
+            background: var(--landing-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: slideUpFade 1s ease-out;
+        }
+
+        .landing-hero p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-8);
+            animation: slideUpFade 1s ease-out 0.2s backwards;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: var(--space-4);
+            animation: slideUpFade 1s ease-out 0.4s backwards;
+            justify-content: flex-start;
+            width: 100%;
+        }
+
+        .btn-unified-large {
+            font-size: 24px;
+            padding: 16px 48px;
+            margin-right: auto;
+            letter-spacing: 1px;
+        }
+
+        /* Unified button styles take place of btn-outline */
+
+        /* --- Enhanced Lighting & Life --- */
+        .glow-orb {
+            position: fixed;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(217, 119, 87, 0.08) 0%, transparent 70%);
+            z-index: -1;
+            pointer-events: none;
+            filter: blur(80px);
+            animation: pulseGlow 15s infinite alternate ease-in-out;
+        }
+
+        .orb-1 {
+            top: -20%;
+            right: -20%;
+        }
+
+        .orb-2 {
+            bottom: -20%;
+            left: -20%;
+            background: radial-gradient(circle, rgba(160, 160, 160, 0.03) 0%, transparent 70%);
+        }
+
+        @keyframes pulseGlow {
+            0% {
+                transform: scale(1) translate(0, 0);
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: scale(1.1) translate(40px, -40px);
+                opacity: 0.7;
+            }
+        }
+
+        /* Features Section */
+        .features-section {
+            padding: var(--space-16) var(--space-8);
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .features-header-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: var(--space-16);
+            gap: var(--space-8);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: var(--space-8);
+        }
+
+        .features-header-title {
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .features-header-title h2 {
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1;
+            margin: 0;
+            color: var(--text-primary);
+            letter-spacing: -2px;
+        }
+
+        .features-header-desc {
+            flex: 1;
+            max-width: 450px;
+            text-align: left;
+        }
+
+        .features-header-desc p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--space-6);
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            padding: var(--space-10);
+            border-radius: var(--radius-xl);
+            transition: all var(--transition-slow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+
+        .dark-theme .feature-card {
+            background: rgba(255, 255, 255, 0.01);
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at top right, rgba(217, 119, 87, 0.08), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-12px);
+            border-color: var(--primary);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3), 0 0 20px rgba(217, 119, 87, 0.1);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--primary-light);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+            transition: all 0.4s ease;
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(5deg);
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(217, 119, 87, 0.4);
+        }
+
+        .feature-card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .feature-card p {
+            font-size: 16px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* 1 of 1 Feature: Study Mode */
+        .study-mode-highlight {
+            padding: var(--space-16) var(--space-8);
+            background: radial-gradient(circle at bottom left, rgba(217, 119, 87, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at top right, rgba(217, 119, 87, 0.05) 0%, transparent 50%);
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            margin: var(--space-16) 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .study-mode-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: var(--space-12);
+        }
+
+        .study-mode-content {
+            flex: 1;
+        }
+
+        .study-mode-badge {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 6px 16px;
+            border-radius: var(--radius-full);
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: var(--space-6);
+            box-shadow: 0 4px 20px rgba(217, 119, 87, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .study-mode-content h2 {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: var(--space-4);
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+
+        .study-mode-content p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: var(--space-8);
+            line-height: 1.6;
+        }
+
+        .study-features {
+            list-style: none;
+            margin-bottom: var(--space-10);
+            padding: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+        }
+
+        .study-features li {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .study-features li span {
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .study-mode-visual {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .mockup-window {
+            width: 100%;
+            max-width: 550px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.4), 0 0 40px rgba(217, 119, 87, 0.1);
+            transform: rotateY(-15deg) rotateX(5deg);
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(20px);
+        }
+
+        .mockup-window:hover {
+            transform: rotateY(-5deg) rotateX(2deg) translateY(-10px);
+        }
+
+        .mockup-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 20px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .mockup-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mockup-body {
+            padding: var(--space-10);
+            min-height: 350px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, transparent 0%, rgba(217, 119, 87, 0.03) 100%);
+        }
+
+        .mockup-timer {
+            font-size: 80px;
+            font-weight: 800;
+            color: var(--primary);
+            font-family: 'Inter', monospace;
+            text-shadow: 0 0 30px rgba(217, 119, 87, 0.4);
+            animation: pulseTimer 2s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulseTimer {
+            0% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+        }
+
+        text-align: center;
+        margin-top: var(--space-4);
+        }
+
+        /* Final CTA Section */
+        .final-cta {
+            padding: var(--space-16) var(--space-8);
+            text-align: center;
+            background: radial-gradient(circle at center, rgba(217, 119, 87, 0.1) 0%, transparent 70%);
+            border-top: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .final-cta h2 {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: var(--space-6);
+            letter-spacing: -2px;
+        }
+
+        .final-cta p {
+            font-size: 20px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto var(--space-10);
+        }
+
+        /* Footer */
+        .footer {
+            padding: var(--space-12) var(--space-8);
+            text-align: center;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-primary);
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-8);
+            margin-bottom: var(--space-6);
+        }
+
+        .footer-links a {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        @media (max-width: 992px) {
+            .landing-hero {
+                flex-direction: column;
+                text-align: center;
+                margin-top: var(--space-12);
+            }
+
+            .hero-content {
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: var(--space-6);
+            }
+
+            .hero-ctas {
+                justify-content: center;
+            }
+
+            .landing-hero h1 {
+                font-size: 48px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .landing-hero h1 {
+                font-size: 40px;
+            }
+
+            .features-header-wrapper {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-4);
+            }
+
+            .study-mode-container {
+                flex-direction: column;
+            }
+
+            .mockup-window {
+                transform: none;
+            }
+
+            .landing-nav {
+                flex-direction: column;
+                gap: var(--space-4);
+                padding: var(--space-4);
+            }
+
+            .nav-links {
+                gap: var(--space-4);
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body class="dark-theme">
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <!-- Nav -->
+    <nav class="landing-nav">
+        <div class="logo-container" style="display: flex; align-items: center; gap: 8px;">
+            <img src="/logo.png" alt="Sphinx-SCA Logo" class="logo-icon" style="width: 32px; height: 32px;">
+            <div class="logo-text" style="font-weight: 700; font-size: 18px;">
+                <span class="logo-sphinx" style="color: var(--primary);">Sphinx</span><span class="logo-sca">-SCA</span>
+            </div>
+        </div>
+        <div class="nav-links">
+
+            <a href="login.html" class="btn-unified">Log In</a>
+            <a href="login.html" class="btn-unified">Sign Up</a>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <header class="landing-hero">
+        <img src="/hero-mascot.png" alt="Sphinx Warrior Mascot" class="hero-bg-image">
+        <div class="hero-bg-overlay"></div>
+
+        <div class="hero-content">
+
+            <h1>Master Mathematics with <span
+                    style="background: none; -webkit-text-fill-color: #fff; color: #fff;">SCA</span></h1>
+            <p>Your on-demand personal tutor. Solve complex equations, generate step-by-step proofs, visualize with
+                dynamic graphs, and elevate your learning with the exclusive Study Mode.</p>
+            <div class="hero-ctas">
+                <a href="index.html" class="btn-unified btn-unified-large">Try Now</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Features -->
+    <section class="features-section">
+        <div class="features-header-wrapper">
+            <div class="features-header-title">
+                <h2>Everything you need to excel</h2>
+            </div>
+            <div class="features-header-desc">
+
+            </div>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">calculate</span></div>
+                <h3>Advanced Equation Solving</h3>
+                <p>Input algebraic, calculus, or trigonometric problems and get precise answers instantly. Supports
+                    deep-thinking for complex proofs.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">format_list_numbered</span></div>
+                <h3>Step-by-Step Guidance</h3>
+                <p>Don't just get the answer. Understand the methodology with detailed, pedagogical breakdowns of every
+                    single step.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">show_chart</span></div>
+                <h3>Dynamic Graphing</h3>
+                <p>Visualize functions in real-time. Interactive 2D and 3D graphs powered by advanced rendering engines
+                    built directly into the chat.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">image</span></div>
+                <h3>Vision & OCR Support</h3>
+                <p>Take a picture of your homework or upload a PDF. Our cutting-edge vision models extract math directly
+                    from images.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">memory</span></div>
+                <h3>Memory & History</h3>
+                <p>Never lose your work. Your entire problem history is securely saved and easily searchable so you can
+                    review past sessions.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><span class="material-symbols-outlined">psychology</span></div>
+                <h3>Deep Think Mode</h3>
+                <p>Engage the highest parameter reasoning models for Olympiad-level problems requiring rigorous logical
+                    deduction.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 1 of 1 Feature: Study Mode -->
+    <section class="study-mode-highlight">
+        <div class="study-mode-container">
+            <div class="study-mode-content">
+                <div class="study-mode-badge">1 of 1 Exclusive Feature</div>
+                <h2>The Ultimate Study Mode</h2>
+                <p>We completely reinvented how you study. Study Mode is not just a chat—it's a deeply immersive,
+                    distraction-free environment that fuses Pomodoro focus techniques with an always-listening AI vision
+                    tutor.</p>
+                <ul class="study-features">
+                    <li><span class="material-symbols-outlined">check_circle</span> Live Canvas for solving math
+                        problems</li>
+                    <li><span class="material-symbols-outlined">check_circle</span> Integrated Pomodoro timer to
+                        maximize focus</li>
+                    <li><span class="material-symbols-outlined">check_circle</span> Real-time AI Vision detects where
+                        you're stuck</li>
+                    <li><span class="material-symbols-outlined">check_circle</span> Ambient, distraction-free minimalist
+                        interface</li>
+                </ul>
+                <a href="study-mode.html" class="btn-unified">Enter Study Mode</a>
+            </div>
+            <div class="study-mode-visual">
+                <div class="mockup-window">
+                    <div class="mockup-header">
+                        <div class="mockup-dot"></div>
+                        <div class="mockup-dot"></div>
+                        <div class="mockup-dot"></div>
+                    </div>
+                    <div class="mockup-body">
+                        <div class="mockup-timer">25:00</div>
+                        <div style="text-align: center; color: var(--text-muted); margin-top: 10px; font-weight: 500;">
+                            Focus Time Active</div>
+
+                        <div
+                            style="background: var(--surface-active); border-radius: 12px; padding: 20px; margin-top: auto; border: 1px solid var(--border-color);">
+                            <div style="display: flex; gap: 16px; align-items: flex-start;">
+                                <div
+                                    style="background: var(--primary-light); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <span class="material-symbols-outlined"
+                                        style="color: var(--primary)">smart_toy</span>
+                                </div>
+                                <div>
+                                    <h4 style="margin: 0 0 4px 0; font-size: 14px; color: var(--text-secondary);">AI
+                                        Tutor</h4>
+                                    <p style="margin: 0; font-size: 15px; line-height: 1.4;">I notice you're working on
+                                        that integral. Do you want a hint for the substitution method?</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <h2>Ready to Master Math?</h2>
+        <p>Join thousands of students using SCA to solve complex problems and ace their exams.</p>
+        <a href="login.html" class="btn-unified btn-unified-large">Get Started Now</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Contact Us</a>
+            <a href="#">About</a>
+        </div>
+        <p>&copy; 2026 Sphinx-SCA. All rights reserved. Designed for the future of learning.</p>
+    </footer>
+
+    <!-- No custom JS needed for theme toggle anymore -->
+</body>
+
+</html>

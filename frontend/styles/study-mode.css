@@ -1189,7 +1189,10 @@
     stroke: var(--primary);
     stroke-width: 8;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.3s;
+    stroke-dasharray: 628.318;
+    stroke-dashoffset: 628.318;
+    transition: stroke-dashoffset 1s linear;
+    filter: drop-shadow(0 0 10px var(--primary-glow-strong));
 }
 
 .timer-center {
@@ -1202,9 +1205,10 @@
 
 .timer-time {
     display: block;
-    font-size: 32px;
+    font-size: 38px;
     font-weight: 800;
-    letter-spacing: -1px;
+    letter-spacing: -1.5px;
+    font-variant-numeric: tabular-nums;
 }
 
 .timer-label {

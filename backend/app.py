@@ -11,8 +11,6 @@ import logging
 from typing import Optional, Any
 from collections import defaultdict
 from dotenv import load_dotenv
-
-# Load .env file at the very beginning
 load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Request, Response, Form
 from pydantic import BaseModel

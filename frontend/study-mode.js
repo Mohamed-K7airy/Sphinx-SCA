@@ -1000,7 +1000,11 @@ async function handleSend(type) {
                         if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
                             fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
                         }
-                        aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
+                        let bufferedResponse = fullResponse;
+                        if ((bufferedResponse.match(/\$\$/g) || []).length % 2 !== 0) bufferedResponse += '$$';
+                        if ((bufferedResponse.match(/\\\[/g) || []).length > (bufferedResponse.match(/\\\]/g) || []).length) bufferedResponse += '\\]';
+                        if ((bufferedResponse.match(/```/g) || []).length % 2 !== 0) bufferedResponse += '\n```';
+                        aiTextDiv.innerHTML = formatMessage(bufferedResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
                         const wrapper = $('study-chat-messages-wrapper');
                         if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
                     }
@@ -1090,7 +1094,11 @@ async function handleStudySend(text, imageUrl, type) {
                             if (fullResponse.includes('<!-- SEARCH_DONE -->')) {
                                 fullResponse = fullResponse.replace('is-active', '').replace('Searching ', 'Searched ').replace(/<!-- SEARCH_DONE -->\n*/g, '');
                             }
-                            aiTextDiv.innerHTML = formatMessage(fullResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
+                            let bufferedResponse = fullResponse;
+                            if ((bufferedResponse.match(/\$\$/g) || []).length % 2 !== 0) bufferedResponse += '$$';
+                            if ((bufferedResponse.match(/\\\[/g) || []).length > (bufferedResponse.match(/\\\]/g) || []).length) bufferedResponse += '\\]';
+                            if ((bufferedResponse.match(/```/g) || []).length % 2 !== 0) bufferedResponse += '\n```';
+                            aiTextDiv.innerHTML = formatMessage(bufferedResponse) + '<span class="typing-cursor" aria-hidden="true"></span>';
                             const wrapper = $('study-chat-messages-wrapper');
                             if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
                         }
@@ -1110,7 +1118,7 @@ async function handleStudySend(text, imageUrl, type) {
         if (intent === 'casual') {
             const res = await fetch(`${API_URL}/study/chat`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, user_id: state.currentUserId })
+                body: JSON.stringify({ question: text, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1124,7 +1132,7 @@ async function handleStudySend(text, imageUrl, type) {
         if (intent === 'explain') {
             const res = await fetch(`${API_URL}/study/explain`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId })
+                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1140,7 +1148,7 @@ async function handleStudySend(text, imageUrl, type) {
             const helpQuestion = state.activeStudySessionId ? (state.studyOriginalQuestion || text) : text;
             const res = await fetch(`${API_URL}/study/help`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: helpQuestion, branch: state.studyBranch, user_id: state.currentUserId })
+                body: JSON.stringify({ question: helpQuestion, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1181,7 +1189,7 @@ async function handleStudySend(text, imageUrl, type) {
             const startRes = await fetch(`${API_URL}/study/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId })
+                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
 
             // ✅ FIX (H-03): Validate response before proceeding
@@ -1909,9 +1917,10 @@ function updateTimerUI() {
     $('timer-time').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     const ring = $('timer-ring-progress');
     const circumference = 2 * Math.PI * 100;
+    ring.style.strokeDasharray = circumference;
     let offset = state.isFreeTimer
         ? circumference * (1 - (state.freeTimerElapsed % 60) / 60)
-        : (state.workDuration > 0 ? circumference * (1 - state.timeRemaining / state.workDuration) : circumference);
+        : (state.workDuration > 0 ? circumference * (state.timeRemaining / state.workDuration) : circumference);
     ring.style.strokeDashoffset = offset;
 }
 
