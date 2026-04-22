@@ -63,7 +63,8 @@ export default defineConfig({
                 login: resolve(__dirname, 'login.html'),
                 signup: resolve(__dirname, 'signup.html'),
                 about: resolve(__dirname, 'about.html'),
-                studyMode: resolve(__dirname, 'study-mode.html')
+                studyMode: resolve(__dirname, 'study-mode.html'),
+                landing: resolve(__dirname, 'landing.html')
             }
         }
     }
