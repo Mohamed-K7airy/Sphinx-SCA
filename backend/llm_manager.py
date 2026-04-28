@@ -30,7 +30,7 @@ import os
 from groq import Groq, AsyncGroq
 from dotenv import load_dotenv
 
-# ✅ Memory: import MemoryManager
+#Memory: import MemoryManager
 try:
     from .memory_manager import MemoryManager
 except ImportError:
@@ -150,7 +150,7 @@ async def _stream_chat_async(messages: list, temperature: float = 0.7):
             stream=True,
         )
 
-        # ✅ FIX (H-07): Robust thinking tag filtering that handles tags
+        # FIX (H-07): Robust thinking tag filtering that handles tags
         # appearing in the same chunk as content text.
         in_thinking = False
         async for chunk in stream:
