@@ -625,6 +625,64 @@ async def generate_title(req: TitleRequest):
         logger.error("Title generation failed: %s", e)  # ✅ FIX (L-07): %s logging
         return {"title": sanitized_text[:30]}
 
+
+# Req #4: Public read of a shared chat session.
+# When a user shares a chat link, the recipient is usually a different account
+# (or signed out entirely). Supabase RLS would normally hide those rows, so we
+# fetch them server-side using the service_role_key and return the public-safe
+# fields (no user_id) ordered by created_at.
+_SESSION_ID_RE = re.compile(r'^[A-Za-z0-9_-]{8,64}$')
+
+@app.get("/shared_chat/{session_id}")
+async def shared_chat(session_id: str):
+    """Return all messages for a shared session id, bypassing RLS."""
+    if not _SESSION_ID_RE.match(session_id):
+        return JSONResponse({"success": False, "error": "Invalid session_id"}, status_code=400)
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    service_role_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    anon_key = os.getenv("SUPABASE_KEY")
+
+    if not supabase_url or not (service_role_key or anon_key):
+        return JSONResponse(
+            {"success": False, "error": "Missing Supabase configuration"},
+            status_code=500,
+        )
+
+    import httpx
+    headers = {
+        "apikey": service_role_key or anon_key,
+        "Authorization": f"Bearer {service_role_key or anon_key}",
+    }
+    # Cap at 500 messages so a long session can't blow up the response.
+    url = (
+        f"{supabase_url}/rest/v1/messages"
+        f"?session_id=eq.{session_id}"
+        f"&select=content,sender,image_url,created_at"
+        f"&order=created_at.asc&limit=500"
+    )
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            res = await client.get(url, headers=headers)
+            if res.status_code != 200:
+                logger.warning(
+                    "shared_chat: supabase responded %s: %s",
+                    res.status_code, res.text[:200],
+                )
+                return JSONResponse(
+                    {"success": False, "error": "Could not fetch shared chat"},
+                    status_code=502,
+                )
+            messages = res.json() or []
+            return {"success": True, "messages": messages}
+        except Exception as e:
+            logger.error("shared_chat failed: %s", e)
+            return JSONResponse(
+                {"success": False, "error": "Server error"},
+                status_code=500,
+            )
+
 @app.post("/study/chat")
 async def study_chat(req: StudyRequest):
     """Casual chat — no graph, direct LLM."""

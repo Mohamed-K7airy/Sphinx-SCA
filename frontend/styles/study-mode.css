@@ -117,6 +117,38 @@
     transform: translateY(-1px);
 }
 
+/* ─── Compact Header Timer (Req #7: always visible) ─── */
+.compact-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 100px;
+    color: var(--primary);
+    font-size: 13.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.compact-timer:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.compact-timer-icon {
+    font-size: 18px !important;
+}
+
+.compact-timer-time {
+    letter-spacing: 0.5px;
+}
+
 
 /* ─── Hero Section (Gemini-aligned) ─── */
 .scm-hero {
@@ -1466,6 +1498,17 @@
 
     .scm-back-btn span:first-child {
         font-size: 18px;
+    }
+
+    /* Compact timer on mobile — shrink padding, keep time visible */
+    .compact-timer {
+        padding: 4px 10px;
+        font-size: 12px;
+        gap: 4px;
+    }
+
+    .compact-timer-icon {
+        font-size: 16px !important;
     }
 
     /* Hero: flex-fill, centered, compact */

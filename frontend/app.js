@@ -5,7 +5,15 @@
 // Supabase auth, chat history, and the full UI.
 
 import { supabase } from './supabaseClient.js';
-import { generateUUID, autoResize, appState } from './lib/helpers.js';
+import {
+    generateUUID,
+    autoResize,
+    appState,
+    persistActiveSession,
+    getPersistedSession,
+    clearPersistedSession,
+    isPageReload,
+} from './lib/helpers.js';
 import { initMarkdown } from './lib/markdown.js';
 import { initChat, addMessage, handleSend, setChatCallbacks } from './lib/chat.js';
 import { initImageUpload } from './lib/imageUpload.js';
@@ -18,6 +26,52 @@ import {
     initModals,
     initGraph,
 } from './lib/ui.js';
+
+// ── Req 6: Chat Title Generation ──────────────────────────────
+// Generates a topic/category-based title from the first user message.
+// Rules:
+//   - Must NOT be based on the last user message (we use the first)
+//   - Image-started chats must NOT have an empty title
+//   - Title should reflect topic/category (Math, General, etc.)
+
+function generateChatTitle(firstMsg, isStudy = false) {
+    if (!firstMsg) return isStudy ? 'Study Session' : 'New Chat';
+
+    const content = (firstMsg.content || '').trim();
+    const hasImage = !!(firstMsg.image_url);
+    const isImageOnly = !content || content === '📷 Image Message' || content === 'Solve this math problem from the image.';
+
+    // 1. Study sessions
+    if (isStudy) {
+        if (hasImage) return 'Study: Image Problem';
+        if (isMathContent(content)) return 'Study: Math Problem';
+        return 'Study Session';
+    }
+
+    // 2. Image-started chats → never empty
+    if (hasImage && isImageOnly) return 'Image Analysis';
+    if (hasImage) return 'Image: ' + truncate(content, 30);
+
+    // 3. Math detection
+    if (isMathContent(content)) return 'Math: ' + truncate(content, 30);
+
+    // 4. General — use first few words as a meaningful summary
+    return truncate(content, 40) || 'General Chat';
+}
+
+function isMathContent(text) {
+    if (!text) return false;
+    // Matches math symbols, equations, common math keywords
+    const mathPatterns = /[∫∑√π∞±≠≈≥≤÷×∂∇θ∆αβγδε]|(\d+\s*[\+\-\*\/\^=]\s*\d)|solve|equation|integral|derivative|factor|simplif|calcul|limit|matrix|vector|polynomial|trigonometr|logarithm|sin\s*\(|cos\s*\(|tan\s*\(|log\s*\(|ln\s*\(/i;
+    return mathPatterns.test(text);
+}
+
+function truncate(text, maxLen) {
+    if (!text) return '';
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (clean.length <= maxLen) return clean;
+    return clean.substring(0, maxLen).replace(/\s+\S*$/, '') + '…';
+}
 
 // ── Supabase helpers ──────────────────────────────────────────
 
@@ -60,6 +114,17 @@ async function fetchUserData(userId) {
         if (messages && messages.length > 0) {
             const sessions = [];
             const seenSessions = new Set();
+            const sessionFirstMsg = {};  // Req 6: track first (oldest) user msg per session
+
+            // messages are newest-first; iterate backwards to find the oldest user msg per session
+            for (let i = messages.length - 1; i >= 0; i--) {
+                const msg = messages[i];
+                if (!msg.session_id || msg.sender !== 'user') continue;
+                if (!sessionFirstMsg[msg.session_id]) {
+                    sessionFirstMsg[msg.session_id] = msg;
+                }
+            }
+
             messages.forEach((msg) => {
                 if (!msg.session_id) return;
                 if (!seenSessions.has(msg.session_id) && msg.sender === 'user') {
@@ -95,8 +160,17 @@ async function fetchUserData(userId) {
                 topSessions.forEach((sessionMsg) => {
                     const sessionId = sessionMsg.session_id;
                     const meta = sessionMeta[sessionId] || {};
-                    const displayName = meta.name || sessionMsg.content;
                     const isStudy = studySessionMap[sessionId] === 'study';
+
+                    // Req 6: Generate title from topic/category, not last message
+                    let autoTitle;
+                    if (meta.name) {
+                        autoTitle = meta.name;  // user-renamed — keep as-is
+                    } else {
+                        const firstMsg = sessionFirstMsg[sessionId] || sessionMsg;
+                        autoTitle = generateChatTitle(firstMsg, isStudy);
+                    }
+                    const displayName = autoTitle;
                     const li = document.createElement('li');
                     li.className = 'history-item';
 
@@ -224,6 +298,9 @@ async function fetchUserData(userId) {
                                 fetchUserData(userId);
                                 if (appState.currentSessionId === sessionId) {
                                     appState.currentSessionId = null;
+                                    appState.isChatActive = false;
+                                    // Req #3: don't restore a deleted chat on next refresh.
+                                    clearPersistedSession('chat');
                                     document.getElementById('chat-messages').innerHTML = '';
                                     const heroSection = document.querySelector('.hero');
                                     const chatInterface = document.getElementById('chat-interface');
@@ -258,7 +335,7 @@ async function fetchUserData(userId) {
     }
 }
 
-async function loadSession(sessionId, _userId) {
+async function loadSession(sessionId, _userId, opts = {}) {
     try {
         const mainSidebar = document.getElementById('main-sidebar');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -267,6 +344,7 @@ async function loadSession(sessionId, _userId) {
             if (sidebarOverlay) sidebarOverlay.classList.remove('active');
         }
 
+        // Try direct (RLS-aware) query first.
         const { data: messages, error } = await supabase
             .from('messages')
             .select('*')
@@ -275,12 +353,43 @@ async function loadSession(sessionId, _userId) {
 
         if (error) throw error;
 
+        // Req #4: Share Chat — if RLS hid the rows (different account / no auth)
+        // fall back to the public /shared_chat backend endpoint so the recipient
+        // sees the full conversation.
+        let resolvedMessages = messages;
+        if ((!messages || messages.length === 0) && opts.allowShared !== false) {
+            try {
+                const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+                    ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+                    : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+                const res = await fetch(`${API_URL}/shared_chat/${encodeURIComponent(sessionId)}`);
+                if (res.ok) {
+                    const body = await res.json();
+                    if (Array.isArray(body.messages) && body.messages.length > 0) {
+                        resolvedMessages = body.messages;
+                    }
+                }
+            } catch (sharedErr) {
+                console.warn('[Share] /shared_chat fallback failed:', sharedErr);
+            }
+        }
+
+        // Req #3: if a restored saved session has no messages (deleted from
+        // another tab, or stale localStorage), drop back to the hero instead
+        // of showing an empty chat view.
+        if (opts.revertOnEmpty && (!resolvedMessages || resolvedMessages.length === 0)) {
+            clearPersistedSession('chat');
+            return;
+        }
+
         appState.currentSessionId = sessionId;
+        // Req #3: persist so a refresh restores the same chat.
+        persistActiveSession('chat', sessionId);
         const chatMessages = document.getElementById('chat-messages');
         chatMessages.innerHTML = '';
 
-        if (messages && messages.length > 0) {
-            messages.forEach((msg) => {
+        if (resolvedMessages && resolvedMessages.length > 0) {
+            resolvedMessages.forEach((msg) => {
                 addMessage(msg.content, msg.sender, msg.image_url);
             });
         }
@@ -297,7 +406,7 @@ async function loadSession(sessionId, _userId) {
         if (chatInterface) chatInterface.scrollTop = chatInterface.scrollHeight;
     } catch (error) {
         console.error('Error loading session:', error);
-        alert('Could not load chat history.');
+        if (!opts.silentOnError) alert('Could not load chat history.');
     }
 }
 
@@ -428,6 +537,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ? await window.showConfirmModal('Are you sure you want to log out?')
                     : confirm('Are you sure you want to log out?');
                 if (!confirmed) return;
+                // Req #3: don't restore the previous user's chat on the next load.
+                clearPersistedSession('chat');
+                clearPersistedSession('study');
                 await supabase.auth.signOut();
                 window.location.reload();
             });
@@ -465,6 +577,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             // Load normal chat session after auth settles
             setTimeout(() => loadSession(sessionParam, null), 300);
+        }
+    } else if (isPageReload()) {
+        // Req #3: On a hard refresh, restore the chat the user was last on
+        // instead of dropping them into a brand-new session.
+        const savedSession = getPersistedSession('chat');
+        if (savedSession) {
+            // Skip Study Mode sessions — they live on study-mode.html
+            let studySessionMap = {};
+            try { studySessionMap = JSON.parse(localStorage.getItem('study_sessions') || '{}'); } catch (e) { }
+            if (studySessionMap[savedSession] !== 'study') {
+                appState.currentSessionId = savedSession;
+                setTimeout(
+                    () => loadSession(savedSession, null, { silentOnError: true, revertOnEmpty: true }),
+                    300,
+                );
+            }
         }
     }
 });
@@ -673,38 +801,8 @@ window.showAlertModal = function(title, message) {
 };
 
 // ── PWA Installation Logic ──
-let deferredPrompt;
-const installBtn = document.getElementById('install-app-btn');
-
+// Req #5: Download App feature removed from the website.
+// Suppress the browser's install banner so it doesn't reappear.
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
     e.preventDefault();
-    // Stash the event so it can be triggered later.
-    deferredPrompt = e;
-    // Update UI notify the user they can install the PWA
-    if (installBtn) {
-        installBtn.style.display = 'flex';
-    }
-});
-
-if (installBtn) {
-    installBtn.addEventListener('click', async (e) => {
-        e.preventDefault();
-        if (!deferredPrompt) return;
-        // Show the install prompt
-        deferredPrompt.prompt();
-        // Wait for the user to respond to the prompt
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        // We've used the prompt, and can't use it again, throw it away
-        deferredPrompt = null;
-        // Hide the install button
-        installBtn.style.display = 'none';
-    });
-}
-
-window.addEventListener('appinstalled', (event) => {
-    console.log('PWA installed successfully');
-    deferredPrompt = null;
-    if (installBtn) installBtn.style.display = 'none';
 });

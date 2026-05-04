@@ -12,6 +12,7 @@
 import { supabase } from './supabaseClient.js';
 import { initMarkdown, formatMessage } from './lib/markdown.js';
 import { initCalculator, initMathToolbar, initGraph } from './lib/ui.js';
+import { persistActiveSession, getPersistedSession, clearPersistedSession, isPageReload } from './lib/helpers.js';
 
 // ✅ FIX (M-01, M-02): Define utility functions that were used but never imported
 function escapeHtml(str) {
@@ -33,6 +34,36 @@ function generateUUID() {
         const v = c === 'x' ? r : (r & 0x3) | 0x8;
         return v.toString(16);
     });
+}
+
+// ── Req 6: Chat Title Generation ──────────────────────────────
+function generateChatTitle(firstMsg, isStudy = true) {
+    if (!firstMsg) return isStudy ? 'Study Session' : 'New Chat';
+    const content = (firstMsg.content || '').trim();
+    const hasImage = !!(firstMsg.image_url);
+    const isImageOnly = !content || content === '📷 Image Message' || content === 'Solve this math problem from the image.';
+    if (isStudy) {
+        if (hasImage) return 'Study: Image Problem';
+        if (isMathContent(content)) return 'Study: Math Problem';
+        return 'Study Session';
+    }
+    if (hasImage && isImageOnly) return 'Image Analysis';
+    if (hasImage) return 'Image: ' + truncateTitle(content, 30);
+    if (isMathContent(content)) return 'Math: ' + truncateTitle(content, 30);
+    return truncateTitle(content, 40) || 'General Chat';
+}
+
+function isMathContent(text) {
+    if (!text) return false;
+    const mathPatterns = /[∫∑√π∞±≠≈≥≤÷×∂∇θ∆αβγδε]|(\d+\s*[\+\-\*\/\^=]\s*\d)|solve|equation|integral|derivative|factor|simplif|calcul|limit|matrix|vector|polynomial|trigonometr|logarithm|sin\s*\(|cos\s*\(|tan\s*\(|log\s*\(|ln\s*\(/i;
+    return mathPatterns.test(text);
+}
+
+function truncateTitle(text, maxLen) {
+    if (!text) return '';
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (clean.length <= maxLen) return clean;
+    return clean.substring(0, maxLen).replace(/\s+\S*$/, '') + '…';
 }
 
 // ── Search Sources Renderer ──────────────────────────────────
@@ -232,6 +263,8 @@ async function initAuthAndHistory() {
     $('toggle-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.toggle('collapsed'));
     $('close-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.add('collapsed'));
     $('open-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.remove('collapsed'));
+    // Req #7: compact header timer also toggles the study tools panel
+    $('compact-timer')?.addEventListener('click', () => $('study-right-sidebar')?.classList.toggle('collapsed'));
     $('sidebar-overlay')?.addEventListener('click', () => {
         $('main-sidebar')?.classList.remove('mobile-open');
         $('main-sidebar')?.classList.add('collapsed');
@@ -254,6 +287,12 @@ async function initAuthAndHistory() {
     if (sessionParam) {
         // Wait for auth to settle then load
         setTimeout(() => loadSession(sessionParam), 200);
+    } else if (isPageReload()) {
+        // Req #3: restore the user's last active Study Mode chat on refresh.
+        const savedSession = getPersistedSession('study');
+        if (savedSession && isStudySession(savedSession)) {
+            setTimeout(() => loadSession(savedSession, { revertOnEmpty: true }), 200);
+        }
     }
 }
 
@@ -269,8 +308,21 @@ async function fetchHistory(userId) {
         historyList.innerHTML = '';
         const seenSessions = new Set();
         const topSessions = [];
+        const sessionFirstMsg = {};  // Req 6: track first (oldest) user msg
+
+        // messages are newest-first; iterate backwards to find oldest user msg per session
+        if (messages && messages.length > 0) {
+            for (let i = messages.length - 1; i >= 0; i--) {
+                const msg = messages[i];
+                if (!msg.session_id || msg.sender !== 'user') continue;
+                if (!sessionFirstMsg[msg.session_id]) {
+                    sessionFirstMsg[msg.session_id] = msg;
+                }
+            }
+        }
+
         messages?.forEach(msg => {
-            if (msg.session_id && !seenSessions.has(msg.session_id)) {
+            if (msg.session_id && !seenSessions.has(msg.session_id) && msg.sender === 'user') {
                 seenSessions.add(msg.session_id);
                 topSessions.push(msg);
             }
@@ -308,7 +360,16 @@ async function fetchHistory(userId) {
         finalSessions.forEach(session => {
             const sessionId = session.session_id;
             const meta = sessionMeta[sessionId] || {};
-            const displayName = meta.name || session.content;
+
+            // Req 6: Generate title from topic/category, not last message
+            let autoTitle;
+            if (meta.name) {
+                autoTitle = meta.name;  // user-renamed — keep as-is
+            } else {
+                const firstMsg = sessionFirstMsg[sessionId] || session;
+                autoTitle = generateChatTitle(firstMsg, true);
+            }
+            const displayName = autoTitle;
 
             const li = document.createElement('li');
             li.className = 'history-item';
@@ -391,6 +452,9 @@ async function fetchHistory(userId) {
                         fetchHistory(userId);
                         if (state.currentSessionId === sessionId) {
                             state.currentSessionId = null;
+                            state.isChatActive = false;
+                            // Req #3: don't restore a deleted chat on next refresh.
+                            clearPersistedSession('study');
                             const chatContainer = $('chat-messages');
                             if (chatContainer) chatContainer.innerHTML = '';
                             const studyHero = $('study-hero');
@@ -409,9 +473,11 @@ async function fetchHistory(userId) {
     } catch (err) { console.error('History fetch error:', err); }
 }
 
-async function loadSession(sessionId) {
+async function loadSession(sessionId, opts = {}) {
     state.currentSessionId = sessionId;
     state.isChatActive = true;
+    // Req #3: persist so a hard refresh restores the same Study Mode chat.
+    persistActiveSession('study', sessionId);
     // Tag this as a study session in the registry
     tagSessionAsStudy(sessionId);
     $('study-hero').style.display = 'none';
@@ -421,9 +487,42 @@ async function loadSession(sessionId) {
             .from('messages').select('*').eq('session_id', sessionId)
             .order('created_at', { ascending: true });
         if (error) throw error;
+
+        // Req #4: Share Chat — fall back to backend /shared_chat for users
+        // who don't own this session (RLS would otherwise hide it).
+        let resolvedMessages = messages;
+        if ((!messages || messages.length === 0) && opts.allowShared !== false) {
+            try {
+                const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+                    ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+                    : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+                const res = await fetch(`${API_URL}/shared_chat/${encodeURIComponent(sessionId)}`);
+                if (res.ok) {
+                    const body = await res.json();
+                    if (Array.isArray(body.messages) && body.messages.length > 0) {
+                        resolvedMessages = body.messages;
+                    }
+                }
+            } catch (sharedErr) {
+                console.warn('[Share] /shared_chat fallback failed:', sharedErr);
+            }
+        }
+
+        // Req #3: if a restored saved session has no messages (deleted from
+        // another tab, or stale localStorage), drop back to the hero instead
+        // of showing an empty chat view.
+        if (opts.revertOnEmpty && (!resolvedMessages || resolvedMessages.length === 0)) {
+            state.currentSessionId = null;
+            state.isChatActive = false;
+            clearPersistedSession('study');
+            $('study-hero').style.display = 'flex';
+            $('study-chat-active').style.display = 'none';
+            return;
+        }
+
         const chatContainer = $('chat-messages');
         chatContainer.innerHTML = '';
-        messages.forEach(msg => addMessage(msg.content, msg.sender, msg.image_url));
+        (resolvedMessages || []).forEach(msg => addMessage(msg.content, msg.sender, msg.image_url));
         // Restore notes and tasks for this specific session
         loadSessionData(sessionId);
     } catch (err) { console.error('Load session error:', err); }
@@ -643,6 +742,7 @@ function initChat() {
         expr = expr.trim();
 
         transitionToChat();
+        maybeGenerateChatTitle(state.currentSessionId, `Plot ${expr}`, false);
 
         const chatMessages = $('chat-messages');
 
@@ -902,6 +1002,46 @@ function transitionToChat() {
         // Start with a clean notes/tasks slate for this fresh session
         loadSessionData(state.currentSessionId);
     }
+    // Req #3: remember this session so a hard refresh restores the same chat.
+    persistActiveSession('study', state.currentSessionId);
+}
+
+// Req #6: Generate a topic-based chat title on first message of a session.
+// Fire-and-forget: saves into chat_session_meta so the sidebar picks it up.
+// Falls back to a non-empty label when the first message is image-only.
+async function maybeGenerateChatTitle(sessionId, firstText, hasImage) {
+    if (!sessionId) return;
+    let meta = {};
+    try { meta = JSON.parse(localStorage.getItem('chat_session_meta') || '{}'); } catch (e) {}
+    if (meta[sessionId]?.name) return;  // already titled
+
+    const textForTitle = (firstText || '').trim() || (hasImage ? 'Math problem from an image' : '');
+    if (!textForTitle) return;
+
+    try {
+        const API_URL = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL
+            ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+            : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+        const res = await fetch(`${API_URL}/generate_title`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: textForTitle }),
+        });
+        if (!res.ok) throw new Error('Title endpoint returned ' + res.status);
+        const data = await res.json();
+        const title = (data.title || '').trim();
+        if (!title) return;
+
+        let currentMeta = {};
+        try { currentMeta = JSON.parse(localStorage.getItem('chat_session_meta') || '{}'); } catch (e) {}
+        currentMeta[sessionId] = { ...(currentMeta[sessionId] || {}), name: title };
+        localStorage.setItem('chat_session_meta', JSON.stringify(currentMeta));
+        // Refresh sidebar so the new title appears immediately
+        if (state.currentUserId) fetchHistory(state.currentUserId);
+    } catch (err) {
+        // Quietly fall back — sidebar will use meta.name || first message content.
+        console.warn('[Title] generate_title failed:', err);
+    }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -930,9 +1070,41 @@ async function handleSend(type) {
 
     if (!text && !imageUrl) return;
 
+    // ── Guest usage limits (Req #1) ────────────────────────────
+    // Non-authenticated users: 2 messages total, 5 image uploads/day.
+    if (!state.currentUserId) {
+        const msgCount = parseInt(localStorage.getItem('guest_msg_count') || '0');
+        if (msgCount >= 2) {
+            if (typeof window.showAlertModal === 'function') {
+                window.showAlertModal('Authentication required', 'Please log in or create an account');
+            } else {
+                alert('Please log in or create an account');
+            }
+            return;
+        }
+        if (imageUrl) {
+            const today = new Date().toISOString().split('T')[0];
+            let guestImgData = {};
+            try { guestImgData = JSON.parse(localStorage.getItem('guest_img_uploads') || '{}'); } catch (e) { }
+            const imgCount = guestImgData[today] || 0;
+            if (imgCount >= 5) {
+                if (typeof window.showAlertModal === 'function') {
+                    window.showAlertModal('Limit Reached', 'You have reached the daily image upload limit');
+                } else {
+                    alert('You have reached the daily image upload limit');
+                }
+                return;
+            }
+            guestImgData[today] = imgCount + 1;
+            localStorage.setItem('guest_img_uploads', JSON.stringify(guestImgData));
+        }
+        localStorage.setItem('guest_msg_count', String(msgCount + 1));
+    }
+
     if (state.currentMode === 'study') return handleStudySend(text, imageUrl, type);
 
     transitionToChat();
+    maybeGenerateChatTitle(state.currentSessionId, text, !!imageUrl);
     input.value = '';
     input.style.height = 'auto';
     const previewWrapper = $(`${type}-image-preview-wrapper`);
@@ -1041,6 +1213,7 @@ async function handleStudySend(text, imageUrl, type) {
     if (dropZoneInput) dropZoneInput.value = '';
 
     transitionToChat();
+    maybeGenerateChatTitle(state.currentSessionId, text, !!imageUrl);
     const finalUserText = text || '📷 Image Message';
     addMessage(finalUserText, 'user', imageUrl);
     saveMessageToSupabase(finalUserText, 'user', imageUrl);
@@ -1919,7 +2092,11 @@ function updateTimerUI() {
     $('timer-label').textContent = state.isFreeTimer ? 'Elapsed' : 'Focus';
     const mins = Math.floor(Math.max(0, displayTime) / 60);
     const secs = Math.max(0, displayTime) % 60;
-    $('timer-time').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    $('timer-time').textContent = formatted;
+    // Mirror into the compact header timer (Req #7: always visible)
+    const compact = $('compact-timer-time');
+    if (compact) compact.textContent = formatted;
     const ring = $('timer-ring-progress');
     const circumference = 2 * Math.PI * 100;
     ring.style.strokeDasharray = circumference;
@@ -1945,11 +2122,15 @@ function bootstrapApp() {
         document.getElementById('study-right-sidebar')?.classList.add('collapsed');
     }
 
-    // Show Study Mode Welcome Modal (Mockup logic)
-    // We force it to appear unless '?session=...' is in the URL (indicating we are in history mode)
+    // Show Study Mode Welcome Modal only when the user is genuinely starting a
+    // new chat — i.e. fresh navigation to study-mode.html with no ?session=...
+    // Skip it on page refresh or back/forward, so reloading doesn't re-trigger it.
     const urlParamsObj = new URLSearchParams(window.location.search);
     const studyOverlay = document.getElementById('study-welcome-overlay');
-    if (!urlParamsObj.get('session') && studyOverlay) {
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    const navType = navEntry ? navEntry.type : 'navigate';
+    const isReloadOrBack = navType === 'reload' || navType === 'back_forward';
+    if (!urlParamsObj.get('session') && !isReloadOrBack && studyOverlay) {
         studyOverlay.classList.add('active');
     }
 

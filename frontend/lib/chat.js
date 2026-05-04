@@ -2,7 +2,7 @@
 // Chat — Messages, Streaming, Actions (Edit / Regenerate / Copy)
 // ============================================================
 
-import { generateUUID, nowTimeLabel, autoResize, scrollToBottom, appState } from './helpers.js';
+import { generateUUID, nowTimeLabel, autoResize, scrollToBottom, appState, persistActiveSession } from './helpers.js';
 import { formatMessage } from './markdown.js';
 import { imageState, removeImagePreview, setImageUploadUI } from './imageUpload.js';
 import { escapeAttr } from './helpers.js';  // ✅ FIX (C-03): import for URL sanitization
@@ -41,6 +41,44 @@ let _fetchHistoryFn = null;
 export function setChatCallbacks({ saveMessage, fetchHistory }) {
     _saveMessageFn = saveMessage;
     _fetchHistoryFn = fetchHistory;
+}
+
+// Req #6: Topic-based chat title on first message of a session.
+// Fire-and-forget; saves into chat_session_meta so the sidebar picks it up.
+// Non-empty fallback when the first message is image-only.
+async function maybeGenerateChatTitle(sessionId, firstText, hasImage) {
+    if (!sessionId) return;
+    let meta = {};
+    try { meta = JSON.parse(localStorage.getItem('chat_session_meta') || '{}'); } catch (e) {}
+    if (meta[sessionId]?.name) return;
+
+    const textForTitle = (firstText || '').trim() || (hasImage ? 'Math problem from an image' : '');
+    if (!textForTitle) return;
+
+    try {
+        const API_URL = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL
+            ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+            : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+        const res = await fetch(`${API_URL}/generate_title`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: textForTitle }),
+        });
+        if (!res.ok) throw new Error('Title endpoint returned ' + res.status);
+        const data = await res.json();
+        const title = (data.title || '').trim();
+        if (!title) return;
+
+        let currentMeta = {};
+        try { currentMeta = JSON.parse(localStorage.getItem('chat_session_meta') || '{}'); } catch (e) {}
+        currentMeta[sessionId] = { ...(currentMeta[sessionId] || {}), name: title };
+        localStorage.setItem('chat_session_meta', JSON.stringify(currentMeta));
+        if (typeof _fetchHistoryFn === 'function' && appState.currentUserId) {
+            _fetchHistoryFn(appState.currentUserId);
+        }
+    } catch (err) {
+        console.warn('[Title] generate_title failed:', err);
+    }
 }
 
 // ── Add a message bubble to the chat ──────────────────────────
@@ -151,6 +189,37 @@ export async function handleSend() {
 
     if (!msg.trim() && !imageState.file) return;
 
+    // ── Guest usage limits (Req #1) ────────────────────────────
+    // Non-authenticated users: 2 messages total, 5 image uploads/day.
+    if (!appState.currentUserId) {
+        const msgCount = parseInt(localStorage.getItem('guest_msg_count') || '0');
+        if (msgCount >= 2) {
+            if (typeof window.showAlertModal === 'function') {
+                window.showAlertModal('Limit Reached', 'Please log in or create an account');
+            } else {
+                alert('Please log in or create an account');
+            }
+            return;
+        }
+        if (imageState.file) {
+            const today = new Date().toISOString().split('T')[0];
+            let guestImgData = {};
+            try { guestImgData = JSON.parse(localStorage.getItem('guest_img_uploads') || '{}'); } catch (e) {}
+            const imgCount = guestImgData[today] || 0;
+            if (imgCount >= 5) {
+                if (typeof window.showAlertModal === 'function') {
+                    window.showAlertModal('Limit Reached', 'You have reached the daily image upload limit');
+                } else {
+                    alert('You have reached the daily image upload limit');
+                }
+                return;
+            }
+            guestImgData[today] = imgCount + 1;
+            localStorage.setItem('guest_img_uploads', JSON.stringify(guestImgData));
+        }
+        localStorage.setItem('guest_msg_count', String(msgCount + 1));
+    }
+
     let finalMsg = msg || 'Solve this math problem from the image.';
     let attachedImageForChat = null;
     let attachedImageForBackend = null;
@@ -172,6 +241,10 @@ export async function handleSend() {
         if (!_chatInterface) _chatInterface = document.getElementById('chat-interface');
 
         appState.isChatActive = true;
+        // Req #3: remember the active session so a refresh restores this chat.
+        persistActiveSession('chat', appState.currentSessionId);
+        // Req #6: generate a topic-based title on the first message.
+        maybeGenerateChatTitle(appState.currentSessionId, msg, !!imageState.file);
         _heroSection?.classList.add('animate-out');
         await new Promise((r) => setTimeout(r, 400));
         if (_heroSection) _heroSection.style.display = 'none';

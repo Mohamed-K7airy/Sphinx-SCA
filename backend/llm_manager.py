@@ -728,6 +728,52 @@ Do NOT just list the steps mechanically — weave them into a clear explanation.
 
 
 # ─────────────────────────────────────────────
+#  TITLE GENERATOR  (Req #6: topic-based chat titles)
+# ─────────────────────────────────────────────
+
+def generate_title(raw_text: str) -> str:
+    """
+    Produce a very short (2–5 word) topic-based title for a conversation,
+    based on the FIRST user message. Never returns empty — falls back to a
+    generic "Math problem" / "General chat" label if the LLM can't classify.
+
+    Used by /generate_title so the sidebar shows topic names like
+    "Algebra problem" or "Calculus derivative" instead of the raw message text.
+    """
+    text = (raw_text or "").strip()
+    if not text:
+        return "New chat"
+
+    prompt = f"""
+You generate short conversation titles based on TOPIC, not the literal message.
+
+Rules:
+- 2 to 5 words, Title Case, no punctuation, no quotes.
+- Describe the TOPIC/CATEGORY, e.g. "Algebra Problem", "Calculus Derivative",
+  "Geometry Triangle", "Statistics Mean", "Linear Algebra", "General Chat".
+- Prefer the math branch name when the message is a math problem.
+- If the message is a greeting / casual / non-math, use "General Chat".
+- If the message is only an image marker or empty text, use "Math Problem".
+- Do NOT echo or paraphrase the user's exact words.
+- Return ONLY the title, nothing else.
+
+First message: "{text}"
+
+Title:"""
+    try:
+        response = _call_llm(prompt, temperature=0.2, max_tokens=32)
+        title = (response or "").strip().strip('"').strip("'")
+        # Take first non-empty line (some models add extra lines)
+        title = title.splitlines()[0].strip() if title else ""
+        # Sanity clamp
+        if not title or len(title) > 60:
+            return title[:60] if title else "Math Problem"
+        return title
+    except Exception:
+        return "Math Problem"
+
+
+# ─────────────────────────────────────────────
 #  UNIFIED INTERFACE
 # ─────────────────────────────────────────────
 
@@ -763,6 +809,9 @@ class LLMManager:
 
     def ocr_fix(self, latex_text: str) -> str:
         return validate_ocr(latex_text)
+
+    def generate_title(self, raw_text: str) -> str:
+        return generate_title(raw_text)
 
     async def chat(self, message: str, history: list = None, user_id: str = None) -> str:
         """Chat normally — greetings, questions, small talk."""

@@ -104,6 +104,12 @@
                         </div>
                     </div>
                     <div class="scm-header-right">
+                        <!-- Compact Focus Timer (Req #7: always visible on mobile + desktop) -->
+                        <button class="compact-timer" id="compact-timer" type="button"
+                            title="Toggle Timer Panel">
+                            <span class="material-symbols-outlined compact-timer-icon">timer</span>
+                            <span class="compact-timer-time" id="compact-timer-time">25:00</span>
+                        </button>
                         <button class="nav-theme-toggle" id="theme-toggle-btn" title="Toggle Theme">
                             <span class="material-symbols-outlined theme-icon">dark_mode</span>
                         </button>
@@ -471,7 +477,7 @@
     <!-- Graph Input Bar (legacy - removed, using inline mode instead) -->
 
     <!-- Welcome Modal (Pop Message) -->
-    <div class="study-welcome-overlay active" id="study-welcome-overlay">
+    <div class="study-welcome-overlay" id="study-welcome-overlay">
         <div class="welcome-modal-card">
             <!-- Logo — same pattern as hero-logo-circle -->
             <div class="welcome-logo-wrap">

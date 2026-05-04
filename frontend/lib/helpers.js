@@ -70,3 +70,38 @@ export const appState = {
     isStreaming: false,
     graphMode: false,
 };
+
+// ─── Req #3: Chat persistence across refreshes ────────────────
+// Save the user's currently active session id so a hard refresh
+// restores the same chat instead of starting a new one. Each page
+// uses its own key so Study Mode and normal chat don't collide.
+const SESSION_KEYS = {
+    chat: 'sphinx:last_active_session_chat',
+    study: 'sphinx:last_active_session_study',
+};
+
+export function persistActiveSession(scope, sessionId) {
+    const key = SESSION_KEYS[scope];
+    if (!key || !sessionId) return;
+    try { localStorage.setItem(key, sessionId); } catch (e) { /* private mode */ }
+}
+
+export function getPersistedSession(scope) {
+    const key = SESSION_KEYS[scope];
+    if (!key) return null;
+    try { return localStorage.getItem(key) || null; } catch (e) { return null; }
+}
+
+export function clearPersistedSession(scope) {
+    const key = SESSION_KEYS[scope];
+    if (!key) return;
+    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+}
+
+/** True only when the page actually got reloaded (F5 / Ctrl+R). */
+export function isPageReload() {
+    try {
+        const nav = performance.getEntriesByType('navigation')[0];
+        return nav ? nav.type === 'reload' : false;
+    } catch (e) { return false; }
+}
