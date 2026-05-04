@@ -1,5 +1,5 @@
 // ============================================================
-// Frontend Entry Point — Sphinx-SCA / IntelliMath-AI
+// Frontend Entry Point — MATHX / IntelliMath-AI
 // ============================================================
 // This file wires together every frontend module and initialises
 // Supabase auth, chat history, and the full UI.
@@ -511,7 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const heroTitle = document.querySelector('.hero-title');
-        if (heroTitle) heroTitle.textContent = 'Sphinx-SCA Your Personal Math Solver';
+        if (heroTitle) heroTitle.textContent = 'MATHX Your Personal Math Solver';
 
         // Hide login, show avatar
         const loginBtn = document.getElementById('nav-login-btn');

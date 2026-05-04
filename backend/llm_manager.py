@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — LLM Manager (Groq + GPT-OSS)
+MATHX — LLM Manager (Groq + GPT-OSS)
 ==========================================
 Roles:
   0. Classifier       → classify problem branch & type  ← BERT replacement
@@ -72,8 +72,8 @@ except Exception as e:
     print(f"⚠️ Failed to initialize Gemini client: {e}")
 
 # ── System prompt — IMPROVED ────────────────────────────────────────
-SYSTEM_PROMPT = """You are Sphinx-SCA, a friendly and smart AI math assistant.
-You were created by students at Sphinx University in Egypt.
+SYSTEM_PROMPT = """You are MATHX, a friendly and smart AI math assistant.
+You were created by students at MATHX University in Egypt.
 
 Your personality:
 - Friendly, warm, and encouraging
@@ -699,7 +699,7 @@ The user asked: "{message}"
 The math solver found the answer: {answer}
 {steps_block}
 
-Now respond as Sphinx-SCA. Follow these guidelines:
+Now respond as MATHX. Follow these guidelines:
 1. Directly acknowledge their specific question in the first sentence
 2. Present the solution as a STORY — each step leads naturally to the next,
    use connective language: "First...", "Because of that...", "This means...", "Finally..."
@@ -779,7 +779,7 @@ Title:"""
 
 class LLMManager:
     """
-    Single interface for all LLM roles in Sphinx-SCA.
+    Single interface for all LLM roles in MATHX.
 
     ─────────────────────────────────────────────
     When BERT is ready — replace classify() only:
@@ -923,6 +923,6 @@ if __name__ == "__main__":
     print("TEST 6d — Multi-turn conversation")
     history = [
         {"role": "user",      "content": "hi!"},
-        {"role": "assistant", "content": "Hello! I'm Sphinx-SCA. How can I help you?"}
+        {"role": "assistant", "content": "Hello! I'm MATHX. How can I help you?"}
     ]
     print(asyncio.run(llm.chat("can you solve quadratic equations?", history)))

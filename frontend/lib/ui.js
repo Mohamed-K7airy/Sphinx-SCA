@@ -397,7 +397,7 @@ export function initGraph() {
                 mainInput.classList.remove('graph-mode-input');
             }
             if (chatInput) {
-                chatInput.placeholder = 'Ask Sphinx-SCA…';
+                chatInput.placeholder = 'Ask MATHX…';
                 chatInput.classList.remove('graph-mode-input');
             }
         }
@@ -446,7 +446,7 @@ export function initGraph() {
         aiDiv.innerHTML = `
             <div class="message-avatar"><img src="logo.png" alt="AI"></div>
             <div class="message-content" style="max-width:640px; width:100%;">
-                <div class="ai-name">Sphinx-SCA</div>
+                <div class="ai-name">MATHX</div>
                 <div class="graph-equation-label">
                     <span class="material-symbols-outlined" style="font-size:18px;">show_chart</span>
                     <span>f(x) = ${expr}</span>

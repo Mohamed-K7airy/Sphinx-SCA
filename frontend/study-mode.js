@@ -1,5 +1,5 @@
 // ============================================================
-// Study Mode — Sphinx-SCA  (FIXED v6)
+// Study Mode — MATHX  (FIXED v6)
 // ============================================================
 // FIX 1: extractContent() — maps all backend response keys to text
 // FIX 2: البطء — حذف الـ pre-solve من أول رسالة، classify بيحصل
@@ -721,7 +721,7 @@ function initChat() {
                 heroInput.classList.remove('graph-mode-input');
             }
             if (chatInput) {
-                chatInput.placeholder = 'Ask Sphinx-SCA…';
+                chatInput.placeholder = 'Ask MATHX…';
                 chatInput.classList.remove('graph-mode-input');
             }
         }
@@ -768,7 +768,7 @@ function initChat() {
         aiDiv.innerHTML = `
             <div class="message-avatar"><img src="logo.png" alt="AI"></div>
             <div class="message-content" style="max-width:640px; width:100%;">
-                <div class="ai-name">Sphinx-SCA</div>
+                <div class="ai-name">MATHX</div>
                 <div class="graph-equation-label">
                     <span class="material-symbols-outlined" style="font-size:18px;">show_chart</span>
                     <span>f(x) = ${escapeHtml(expr)}</span>
@@ -1768,7 +1768,7 @@ function addMessage(text, sender, imageUrl = null) {
         msgDiv.innerHTML = `
             <div class="message-avatar"><img src="logo.png"></div>
             <div class="message-content">
-                <div class="ai-name">SPHINX-SCA</div>
+                <div class="ai-name">MATHX</div>
                 <div class="text-body">${formatMessage(text)}</div>
                 <div class="message-actions">
                     <button class="action-btn" data-action="copy" title="Copy"><span class="material-symbols-outlined">content_copy</span></button>

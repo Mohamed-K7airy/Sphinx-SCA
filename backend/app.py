@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — Backend API (v3 Stable)
+MATHX — Backend API (v3 Stable)
 """
 
 import os
@@ -198,7 +198,7 @@ if not _is_production:
             ALLOWED_ORIGINS.append(origin)
 
 app = FastAPI(
-    title="Sphinx-SCA API",
+    title="MATHX API",
     version="3.0"
 )
 
@@ -946,7 +946,7 @@ async def get_admin_stats(request: Request):
                     short_id = str(u)[:6]
                     recent_users.append({
                         "name": f"User_{short_id}", 
-                        "email": f"user_{short_id}@sphinx.com", 
+                        "email": f"user_{short_id}@mathx.com", 
                         "status": "online"
                     })
 

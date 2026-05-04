@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Sphinx-SCA</title>
-    <meta name="description" content="Log in or create your Sphinx-SCA account to access your AI math solver.">
+    <title>Login | MATHX</title>
+    <meta name="description" content="Log in or create your MATHX account to access your AI math solver.">
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#3b82f6">
@@ -44,7 +44,7 @@
             padding: 20px;
         }
 
-        /* Background Blobs (Adapted to Sphinx-SCA colors) */
+        /* Background Blobs (Adapted to MATHX colors) */
         .blob {
             position: absolute;
             width: 600px;
@@ -606,7 +606,7 @@
         <!-- Sign Up Form -->
         <div class="form-container sign-up">
             <form id="signup-form">
-                <img src="/logo.png" alt="Sphinx-SCA" class="auth-logo">
+                <img src="/logo.png" alt="MATHX" class="auth-logo">
                 <h2>Create Account</h2>
 
                 <div class="oauth-container">
@@ -664,7 +664,7 @@
         <!-- Sign In Form -->
         <div class="form-container sign-in">
             <form id="login-form">
-                <img src="/logo.png" alt="Sphinx-SCA" class="auth-logo">
+                <img src="/logo.png" alt="MATHX" class="auth-logo">
                 <h2>Welcome Back</h2>
 
                 <div class="oauth-container">
@@ -718,7 +718,7 @@
             <div class="toggle">
                 <div class="toggle-panel toggle-left">
                     <h2>Welcome Back!</h2>
-                    <p>Enter your personal details to access all of Sphinx-SCA features.</p>
+                    <p>Enter your personal details to access all of MATHX features.</p>
                     <button class="form-btn hidden" id="login">Sign In</button>
                 </div>
                 <div class="toggle-panel toggle-right">
@@ -800,7 +800,7 @@
             btn.disabled = true;
 
             // Optional Admin Account Bypass
-            if (email.toLowerCase() === 'admin@sphinx-sca.com' && password === 'admin123') {
+            if (email.toLowerCase() === 'admin@mathx.com' && password === 'admin123') {
                 localStorage.setItem('admin_logged_in', 'true');
                 window.location.href = 'admin-dashboard.html';
                 return;

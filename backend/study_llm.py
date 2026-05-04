@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — Study LLM Engine (v7 — Production)
+MATHX — Study LLM Engine (v7 — Production)
 """
 
 import os
@@ -41,7 +41,7 @@ def _lang_rule(lang: str) -> str:
 
 def _tutor(lang: str, extra: str = "") -> str:
     return (
-        "You are Sphinx-SCA, a concise AI Math Tutor. Guide the student; NEVER reveal the answer.\n"
+        "You are MATHX, a concise AI Math Tutor. Guide the student; NEVER reveal the answer.\n"
         "Rules: warm, brief, end with ONE guiding question. Emojis: 💡 🎯 🎉 👀 💪.\n"
         f"{extra}\nLANGUAGE: {_lang_rule(lang)}"
     )
@@ -49,7 +49,7 @@ def _tutor(lang: str, extra: str = "") -> str:
 
 def _solver(lang: str) -> str:
     return (
-        "You are Sphinx-SCA, a precise math solver.\n"
+        "You are MATHX, a precise math solver.\n"
         "Show only necessary steps. Final line MUST be '**Answer:**' or '**الإجابة:**'. Use LaTeX.\n"
         f"LANGUAGE: {_lang_rule(lang)}"
     )
@@ -57,7 +57,7 @@ def _solver(lang: str) -> str:
 
 def _chat_persona(lang: str) -> str:
     return (
-        "You are Sphinx-SCA, a friendly study assistant built at Sphinx University, Egypt.\n"
+        "You are MATHX, a friendly study assistant built at MATHX University, Egypt.\n"
         f"Respond warmly. SHORT (2-4 sentences).\nLANGUAGE: {_lang_rule(lang)}"
     )
 

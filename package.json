@@ -1,7 +1,7 @@
 {
-  "name": "sphinx-sca-app",
+  "name": "mathx-app",
   "version": "1.0.0",
-  "description": "Desktop and Mobile version of Sphinx-SCA",
+  "description": "Desktop and Mobile version of MATHX",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

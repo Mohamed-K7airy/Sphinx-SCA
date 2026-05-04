@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — Supabase OCR Storage
+MATHX — Supabase OCR Storage
 ===================================
 Tasks:
   1. Upload image to Supabase Storage (bucket: ocr-images)

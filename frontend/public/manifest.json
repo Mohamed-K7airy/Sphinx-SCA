@@ -1,7 +1,7 @@
 {
-  "name": "Sphinx SCA",
+  "name": "MATHX SCA",
   "short_name": "SCA",
-  "description": "Sphinx Study & Coding Assistant",
+  "description": "MATHX Study & Coding Assistant",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

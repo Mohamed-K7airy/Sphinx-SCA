@@ -76,8 +76,8 @@ export const appState = {
 // restores the same chat instead of starting a new one. Each page
 // uses its own key so Study Mode and normal chat don't collide.
 const SESSION_KEYS = {
-    chat: 'sphinx:last_active_session_chat',
-    study: 'sphinx:last_active_session_study',
+    chat: 'mathx:last_active_session_chat',
+    study: 'mathx:last_active_session_study',
 };
 
 export function persistActiveSession(scope, sessionId) {

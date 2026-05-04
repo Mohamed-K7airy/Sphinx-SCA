@@ -103,7 +103,7 @@ export function addMessage(text, sender, imageUrl = null, isError = false, opts 
                 <img src="logo.png" alt="AI">
             </div>
             <div class="message-content">
-                <div class="ai-name">Sphinx-SCA</div>
+                <div class="ai-name">MATHX</div>
                 <div class="text-body">${text || ''}</div>
                 <div class="message-actions">
                     <button class="action-btn" data-action="copy" title="Copy">

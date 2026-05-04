@@ -1,5 +1,5 @@
 // ============================================================
-// Sphinx-SCA Service Worker
+// MATHX Service Worker
 // ------------------------------------------------------------
 // Strategy:
 //   - Network-first for navigation (HTML) so new deploys are

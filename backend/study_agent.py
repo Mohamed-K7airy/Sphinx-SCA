@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — Study Mode Agent (v9 — Production)
+MATHX — Study Mode Agent (v9 — Production)
 
 Key changes vs v8:
   - session_id REMOVED from end_session tool schema (backend-injected only)
@@ -100,7 +100,7 @@ def _fire_and_forget(coro) -> None:
 # ─────────────────────────────────────────────
 
 STUDY_SYSTEM_PROMPT = """\
-You are Sphinx-SCA, an AI Math Tutor built at Sphinx University, Egypt.
+You are MATHX, an AI Math Tutor built at MATHX University, Egypt.
 GOAL: Guide the student to understand and solve problems themselves.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

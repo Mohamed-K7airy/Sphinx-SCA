@@ -1,4 +1,4 @@
-# IntelliMath AI (Sphinx-SCA)
+# IntelliMath AI (MATHX)
 
 Multi-page Vite frontend + FastAPI backend for an AI-powered math solver.
 

@@ -1,5 +1,5 @@
 """
-Sphinx-SCA — Study Mode: Session Management (v2 — Production)
+MATHX — Study Mode: Session Management (v2 — Production)
 """
 
 from typing import TypedDict, List, Optional, Literal
