@@ -364,6 +364,9 @@ async def route_and_solve(
 
     mode = _normalize_mode(mode)
 
+    # ── Track who solved the problem ──
+    solved_by = "none"
+
     def _parser_key_for_branch(b: str) -> str:
         """
         `LLMManager.parse()` expects a parser key, not necessarily the classifier branch.
@@ -398,6 +401,7 @@ async def route_and_solve(
 
     # 2️⃣ chat
     if not is_math or branch == "chat":
+        solved_by = "LLM"
 
         try:
             chat_question = raw_question
@@ -418,7 +422,8 @@ async def route_and_solve(
                     "branch": "chat",
                     "final_answer": answer,
                     "is_chat": True,
-                    "llm_steps": []
+                    "llm_steps": [],
+                    "solved_by": solved_by,
                 },
             )
 
@@ -463,6 +468,9 @@ async def route_and_solve(
         matrix = parsed.get("matrix_a")
         result = run_solver(linear_algebra_solve, op, matrix=matrix)
 
+    if result.get("success"):
+        solved_by = "Math Engine"
+
     # 5️⃣ fallback to LLM
     if not result.get("success"):
         if branch == "word_problem":
@@ -472,6 +480,7 @@ async def route_and_solve(
                     "success": True,
                     "final_answer": wp.get("answer_sentence")
                 }
+                solved_by = "LLM"
             except Exception as e:
                 logger.error("Word problem fallback failed: %s", e, exc_info=True)
                 result["error"] = str(e)
@@ -496,6 +505,7 @@ async def route_and_solve(
     result["problem_type"] = problem_type
     result["is_chat"] = False
     result["mode"] = mode
+    result["solved_by"] = solved_by
 
     # ✅ FIX (M-10): Removed dead duplicate steps code — steps are already
     # generated in section 6️⃣ above when result is successful.
