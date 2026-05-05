@@ -83,13 +83,12 @@ Respond ONLY in valid JSON. No markdown backticks, no explanations.
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0
             )
-        
+        #بيشيل الـ ``` لو الرد جاي في شكل كود 
         reply = response.choices[0].message.content.strip()
-        # ✅ FIX (S-15): Robust backtick stripping using regex
         reply = re.sub(r'^```(?:json)?\s*', '', reply)
         reply = re.sub(r'\s*```\s*$', '', reply)
-            
-        actions = json.loads(reply)
+        
+        actions = json.loads(reply) #{ "action": "add" } -> {'action': 'add'}
         
         if not actions:
             return "No action done"
@@ -101,13 +100,19 @@ Respond ONLY in valid JSON. No markdown backticks, no explanations.
         for action in actions:
             act = action.get("action")
             if act == "add":
-                text = action.get("memory_text")
-                cats = action.get("categories", [])
+                text = action.get("memory_text") #text = "I love FC 25"
+                cats = action.get("categories", []) #cats = ["user_interests"]
                 if text:
-                    emb = await generate_embeddings([text])
+                    emb = await generate_embeddings([text]) #[0.1, 0.2, 0.3, ...]
                     if not emb:
                         print("⚠️ Skipping ADD: embedding generation failed.")
                         continue
+                    # without [0]:
+                    #     generate_embedding("hello")
+                    #     generate_embedding("world")
+                    #     generate_embedding("ai")
+                    # with [0]:
+                    #     generate_embeddings(["hello", "world", "ai"])
                     await insert_memories([
                         EmbeddedMemory(
                             user_id=user_id,
@@ -119,12 +124,12 @@ Respond ONLY in valid JSON. No markdown backticks, no explanations.
                     ])
                     added_count += 1
             elif act == "update":
-                m_id = action.get("memory_id")
-                text = action.get("memory_text")
-                cats = action.get("categories", [])
+                m_id = action.get("memory_id") 
+                text = action.get("memory_text")#text = "I love FC 26"
+                cats = action.get("categories", []) #cats = ["user_interests"]
                 if m_id is not None and 0 <= m_id < len(existing_memories) and text:
                     point_id = existing_memories[m_id].point_id
-                    await delete_records([point_id])
+                    await delete_records([point_id])#بيحذف القديم عشان يضيف الجديد بدلوا
                     emb = await generate_embeddings([text])
                     if not emb:
                         print("⚠️ Skipping UPDATE: embedding generation failed.")
@@ -136,6 +141,7 @@ Respond ONLY in valid JSON. No markdown backticks, no explanations.
                             categories=cats,
                             date=datetime.now().strftime("%Y-%m-%d %H:%M"),
                             embedding=emb[0]
+                        
                         )
                     ])
                     updated_count += 1
@@ -151,22 +157,22 @@ Respond ONLY in valid JSON. No markdown backticks, no explanations.
         print(f"Error executing memory agent: {e}")
         return "Error"
 
-
+#خد آخر كلام المستخدم حوّله لأرقام دور على ذكريات مشابهة خلّي AI يقرر نعمل إيه في الذاكرة
 async def update_memories(user_id: str, messages: list[dict]):
     try:
-        user_messages = [x["content"] for x in messages if x["role"] == "user"]
+        user_messages = [x["content"] for x in messages if x["role"] == "user"]#بيشوف طلبات المستخدم فقط
         if not user_messages:
             return "No user messages found"
-        latest_user_message = user_messages[-1]
+        latest_user_message = user_messages[-1]#بيركز على أحدث طلب من المستخدم فقط
         
-        emb = await generate_embeddings([latest_user_message])
+        emb = await generate_embeddings([latest_user_message])#حوّل الكلام لرقم
         if not emb:
             print("⚠️ Embedding generation failed — skipping memory update.")
             return "Embedding failed"
-        embedding = emb[0]
+        embedding = emb[0]  #خد الرقم
 
-        retrieved_memories = await search_memories(search_vector=embedding, user_id=user_id)
-
+        retrieved_memories = await search_memories(search_vector=embedding, user_id=user_id)#دور على ذكريات مشابهة
+         #خلّي AI يقرر نعمل إيه في الذاكرة
         response = await update_memories_agent(
             user_id=user_id, existing_memories=retrieved_memories, messages=messages
         )

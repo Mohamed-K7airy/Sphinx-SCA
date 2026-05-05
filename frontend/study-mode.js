@@ -36,6 +36,18 @@ function generateUUID() {
     });
 }
 
+// ── Reply Context Parser ─────────────────────────────────────
+// Splits a stored "[User is replying to ...]\n\nMSG" string into
+// the quoted snippet + the user's actual message so the bubble
+// can render a Telegram-style quote block above the text.
+const REPLY_PREFIX_RE = /^\[User is replying to this specific part of your previous response: "([\s\S]*?)"\]\n\n([\s\S]*)$/;
+function parseReplyText(text) {
+    if (!text) return { quoted: null, message: text || '' };
+    const match = String(text).match(REPLY_PREFIX_RE);
+    if (match) return { quoted: match[1], message: match[2] };
+    return { quoted: null, message: text };
+}
+
 // ── Req 6: Chat Title Generation ──────────────────────────────
 function generateChatTitle(firstMsg, isStudy = true) {
     if (!firstMsg) return isStudy ? 'Study Session' : 'New Chat';
@@ -853,7 +865,9 @@ function bindStudyChatActions() {
             const ci = $('chat-search-input');
             if (ci && state.studyOriginalQuestion) {
                 let prev = msgEl.previousElementSibling;
+                let carriedReplyQuote = null;
                 if (prev && prev.classList.contains('user-message')) {
+                    carriedReplyQuote = prev.dataset?.replyQuote || null;
                     let next = prev.nextElementSibling;
                     while (next) { const toRemove = next; next = next.nextElementSibling; toRemove.remove(); }
                     prev.remove();
@@ -864,6 +878,7 @@ function bindStudyChatActions() {
                 }
 
                 ci.value = state.studyOriginalQuestion;
+                if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
                 handleSend('chat');
             }
         } else if (action === 'like') {
@@ -939,20 +954,26 @@ function bindStudyChatActions() {
                 if (actionsInline) actionsInline.style.display = 'flex';
                 const ci = $('chat-search-input');
                 if (ci) ci.value = newText;
+                // Preserve reply quote on edit so the rerun keeps the context
+                const carriedReplyQuote = msgEl?.dataset?.replyQuote || null;
                 let next = msgEl.nextElementSibling;
                 while (next) { const toRemove = next; next = next.nextElementSibling; toRemove.remove(); }
                 msgEl.remove();
+                if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
                 handleSend('chat');
             });
         } else if (action === 'resend-user') {
             const text = msgContent?.querySelector('.text-body')?.textContent;
             if (text) {
+                // Preserve reply quote on resend
+                const carriedReplyQuote = msgEl?.dataset?.replyQuote || null;
                 let next = msgEl.nextElementSibling;
                 while (next) { const toRemove = next; next = next.nextElementSibling; toRemove.remove(); }
                 msgEl.remove();
 
                 const ci = $('chat-search-input');
                 if (ci) ci.value = text;
+                if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
                 handleSend('chat');
             }
         }
@@ -1070,6 +1091,20 @@ async function handleSend(type) {
 
     if (!text && !imageUrl) return;
 
+    // ── Reply Context (Req: Reply to Message) ─────────────────
+    // Capture and clear immediately so the bar disappears as soon as
+    // the user hits Send. The contextualized text is forwarded to
+    // every backend endpoint via apiText below.
+    const replyCtx = window.replyContext || null;
+    if (replyCtx && typeof window.clearReplyContext === 'function') {
+        window.clearReplyContext();
+    } else if (replyCtx) {
+        window.replyContext = null;
+    }
+    const apiText = replyCtx
+        ? `[User is replying to this specific part of your previous response: "${replyCtx}"]\n\n${text}`
+        : text;
+
     // ── Guest usage limits (Req #1) ────────────────────────────
     // Non-authenticated users: 2 messages total, 5 image uploads/day.
     if (!state.currentUserId) {
@@ -1101,7 +1136,7 @@ async function handleSend(type) {
         localStorage.setItem('guest_msg_count', String(msgCount + 1));
     }
 
-    if (state.currentMode === 'study') return handleStudySend(text, imageUrl, type);
+    if (state.currentMode === 'study') return handleStudySend(text, imageUrl, type, apiText);
 
     transitionToChat();
     maybeGenerateChatTitle(state.currentSessionId, text, !!imageUrl);
@@ -1116,8 +1151,13 @@ async function handleSend(type) {
     const dropZoneInput = $(`${type}-drop-zone-input`);
     if (dropZoneInput) dropZoneInput.value = '';
 
-    addMessage(text, 'user', imageUrl);
-    saveMessageToSupabase(text || '📷 Image Message', 'user', imageUrl);
+    // Save the prefixed text so the chat persists the reply quote
+    // across reloads (the bubble parses it back when rendering).
+    const messageForBubble = replyCtx
+        ? `[User is replying to this specific part of your previous response: "${replyCtx}"]\n\n${text || ''}`
+        : text;
+    addMessage(messageForBubble, 'user', imageUrl);
+    saveMessageToSupabase(messageForBubble || '📷 Image Message', 'user', imageUrl);
 
     const aiMsgDiv = addMessage('', 'ai');
     const aiTextDiv = aiMsgDiv.querySelector('.text-body');
@@ -1137,7 +1177,7 @@ async function handleSend(type) {
         const response = await fetch(`${API_URL}/solve_stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: text || 'Solve this math problem from the image.', image_data: imageUrl, mode: state.currentMode, session_id: state.currentSessionId, user_id: state.currentUserId, history: [] })
+            body: JSON.stringify({ question: apiText || 'Solve this math problem from the image.', image_data: imageUrl, mode: state.currentMode, session_id: state.currentSessionId, user_id: state.currentUserId, history: [] })
         });
 
         // ✅ FIX (H-03): Check response status before reading body
@@ -1200,7 +1240,7 @@ async function handleSend(type) {
 // STUDY SEND — FIXED
 // ══════════════════════════════════════════════════════════════
 
-async function handleStudySend(text, imageUrl, type) {
+async function handleStudySend(text, imageUrl, type, apiTextOverride) {
     const input = $(`${type}-search-input`);
     input.value = '';
     input.style.height = 'auto';
@@ -1214,9 +1254,29 @@ async function handleStudySend(text, imageUrl, type) {
 
     transitionToChat();
     maybeGenerateChatTitle(state.currentSessionId, text, !!imageUrl);
-    const finalUserText = text || '📷 Image Message';
-    addMessage(finalUserText, 'user', imageUrl);
-    saveMessageToSupabase(finalUserText, 'user', imageUrl);
+
+    // ── Reply Context (Req: Reply to Message) ─────────────────
+    // apiText is the contextualized question to forward to backends.
+    // The bubble shows a quote block + the user's typed text.
+    const apiText = apiTextOverride || text;
+    const replyPrefixMatch = (apiText !== text)
+        ? apiText.match(/^\[User is replying to this specific part of your previous response: "([\s\S]*?)"\]\n\n/)
+        : null;
+    const replyQuoted = replyPrefixMatch ? replyPrefixMatch[1] : null;
+    const wrapWithReply = (q) => replyQuoted
+        ? `[User is replying to this specific part of your previous response: "${replyQuoted}"]\n\n${q}`
+        : q;
+
+    // Build the bubble/storage text so the quote block renders and
+    // persists in Supabase across reloads.
+    const userTextForBubble = replyQuoted
+        ? wrapWithReply(text || '')
+        : (text || '📷 Image Message');
+    const userTextForStorage = replyQuoted
+        ? wrapWithReply(text || '')
+        : (text || '📷 Image Message');
+    addMessage(userTextForBubble, 'user', imageUrl);
+    saveMessageToSupabase(userTextForStorage, 'user', imageUrl);
 
     const aiMsgDiv = addMessage('', 'ai');
     const aiTextDiv = aiMsgDiv.querySelector('.text-body');
@@ -1235,7 +1295,7 @@ async function handleStudySend(text, imageUrl, type) {
         if (intent === 'search') {
             const res = await fetch(`${API_URL}/solve_stream`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, mode: 'general', user_id: state.currentUserId })
+                body: JSON.stringify({ question: apiText, mode: 'general', user_id: state.currentUserId })
             });
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -1292,7 +1352,7 @@ async function handleStudySend(text, imageUrl, type) {
         if (intent === 'casual') {
             const res = await fetch(`${API_URL}/study/chat`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, user_id: state.currentUserId, image_data: imageUrl })
+                body: JSON.stringify({ question: apiText, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1306,7 +1366,7 @@ async function handleStudySend(text, imageUrl, type) {
         if (intent === 'explain') {
             const res = await fetch(`${API_URL}/study/explain`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
+                body: JSON.stringify({ question: apiText, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1319,10 +1379,12 @@ async function handleStudySend(text, imageUrl, type) {
         }
 
         if (intent === 'help') {
+            // For help in an active session, still use studyOriginalQuestion
+            // but if there's a reply context, prepend it so the LLM has the snippet.
             const helpQuestion = state.activeStudySessionId ? (state.studyOriginalQuestion || text) : text;
             const res = await fetch(`${API_URL}/study/help`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: helpQuestion, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
+                body: JSON.stringify({ question: wrapWithReply(helpQuestion), branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
             const data = await res.json();
             const content = extractContent(data);
@@ -1363,7 +1425,7 @@ async function handleStudySend(text, imageUrl, type) {
             const startRes = await fetch(`${API_URL}/study/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question: text, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
+                body: JSON.stringify({ question: apiText, branch: state.studyBranch, user_id: state.currentUserId, image_data: imageUrl })
             });
 
             // ✅ FIX (H-03): Validate response before proceeding
@@ -1419,7 +1481,7 @@ async function handleStudySend(text, imageUrl, type) {
                     session_id: state.activeStudySessionId,
                     question: state.studyOriginalQuestion,
                     branch: state.studyBranch,
-                    student_answer: text,
+                    student_answer: apiText,
                     correct_answer: state.studyCorrectAnswer,
                     user_id: state.currentUserId
                 })
@@ -1778,11 +1840,23 @@ function addMessage(text, sender, imageUrl = null) {
                 </div>
             </div>`;
     } else {
+        // Detect a reply prefix so we can render the quoted snippet as
+        // a separate quote block above the user's text. The prefix is
+        // kept on data-reply-quote so it survives history rebuilds.
+        const { quoted, message: displayText } = parseReplyText(text);
+        if (quoted) msgDiv.dataset.replyQuote = quoted;
+        const quoteHtml = quoted
+            ? `<div class="message-reply-quote">
+                    <span class="reply-quote-label">↩ Replying to</span>
+                    <div class="reply-quote-text">${escapeHtml(quoted)}</div>
+               </div>`
+            : '';
         msgDiv.innerHTML = `
             <div style="display:flex;flex-direction:column;align-items:flex-end;width:100%;">
                 <div class="message-content" style="max-width:100%;">
-                    ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="message-image" data-action="zoom-media" alt="Uploaded image">` : ''}  
-                    ${text && text !== '📷 Image Message' ? `<div class="text-body">${escapeHtml(text)}</div>` : ''}
+                    ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" class="message-image" data-action="zoom-media" alt="Uploaded image">` : ''}
+                    ${quoteHtml}
+                    ${displayText && displayText !== '📷 Image Message' ? `<div class="text-body">${escapeHtml(displayText)}</div>` : ''}
                 </div>
                 <div class="message-actions-inline" style="display:flex;gap:4px;align-items:center;margin-top:6px;margin-right:4px;">
                     <span class="message-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -2106,6 +2180,191 @@ function updateTimerUI() {
     ring.style.strokeDashoffset = offset;
 }
 
+// ============================================================
+// Reply to Message Feature (Study Mode)
+// ============================================================
+// Mirrors the implementation in app.js so the experience is
+// identical across the main chat and Study Mode. State is kept
+// on `window.replyContext` so both pages share the same source
+// of truth (separate page loads, but consistent behavior).
+// ============================================================
+
+window.replyContext = window.replyContext || null;
+
+function ensureReplyPopupSM() {
+    let popup = document.getElementById('reply-popup');
+    if (popup) return popup;
+    popup = document.createElement('div');
+    popup.id = 'reply-popup';
+    popup.setAttribute('role', 'button');
+    popup.innerHTML = '<span class="reply-icon">↩</span><span>Reply</span>';
+    popup.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const sel = window.getSelection();
+        const text = sel ? sel.toString().trim() : '';
+        if (text) {
+            window.setReplyContext(text);
+            try { sel.removeAllRanges(); } catch (err) { /* noop */ }
+        }
+        hideReplyPopupSM();
+    });
+    document.body.appendChild(popup);
+    return popup;
+}
+
+function showReplyPopupSM(rect) {
+    const popup = ensureReplyPopupSM();
+    popup.style.display = 'inline-flex';
+    const top = rect.top + window.scrollY - popup.offsetHeight - 8;
+    const left = rect.left + window.scrollX + (rect.width / 2) - (popup.offsetWidth / 2);
+    popup.style.top = Math.max(window.scrollY + 4, top) + 'px';
+    popup.style.left = Math.max(8, left) + 'px';
+}
+
+function hideReplyPopupSM() {
+    const popup = document.getElementById('reply-popup');
+    if (popup) popup.style.display = 'none';
+}
+
+function renderReplyBarsSM() {
+    document.querySelectorAll('.reply-preview-bar').forEach(b => b.remove());
+    if (!window.replyContext) return;
+
+    const raw = window.replyContext;
+    const trimmed = raw.length > 80 ? raw.substring(0, 80) + '...' : raw;
+
+    document.querySelectorAll('.input-content').forEach(content => {
+        const bar = document.createElement('div');
+        bar.className = 'reply-preview-bar';
+        const safeText = trimmed
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        bar.innerHTML = `
+            <span class="material-symbols-outlined" style="font-size:14px;color:#f97316;">reply</span>
+            <span class="reply-text">Replying to: "${safeText}"</span>
+            <button class="reply-cancel" type="button" title="Cancel reply">×</button>
+        `;
+        bar.querySelector('.reply-cancel').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.clearReplyContext();
+        });
+        const textarea = content.querySelector('.search-input');
+        if (textarea) {
+            content.insertBefore(bar, textarea);
+        } else {
+            content.insertBefore(bar, content.firstChild);
+        }
+    });
+}
+
+window.setReplyContext = function (text) {
+    if (!text || !text.trim()) return;
+    window.replyContext = text.trim();
+    hideReplyPopupSM();
+    renderReplyBarsSM();
+    // Focus the active input so the user can start typing
+    const chatInput = $('chat-search-input');
+    const heroInput = $('hero-search-input');
+    const target = (chatInput && chatInput.offsetParent) ? chatInput : heroInput;
+    if (target) target.focus();
+};
+
+window.clearReplyContext = function () {
+    window.replyContext = null;
+    document.querySelectorAll('.reply-preview-bar').forEach(b => b.remove());
+};
+
+function attachReplyBtnToMessageSM(msgEl) {
+    if (!msgEl.classList || !msgEl.classList.contains('ai-message')) return;
+    
+    // Check if it already has a reply button in the actions
+    if (msgEl.querySelector('.message-actions .message-reply-inline-btn')) return;
+
+    const actions = msgEl.querySelector('.message-actions');
+    if (!actions) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'action-btn message-reply-inline-btn';
+    btn.type = 'button';
+    btn.title = 'Reply';
+    btn.innerHTML = '<span class="material-symbols-outlined">reply</span>';
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const textBody = msgEl.querySelector('.text-body');
+        const textVal = (textBody?.innerText || textBody?.textContent || '').trim();
+        if (textVal) window.setReplyContext(textVal);
+    });
+    actions.appendChild(btn);
+}
+
+function initReplyFeature() {
+    ensureReplyPopupSM();
+
+    document.querySelectorAll('.ai-message').forEach(attachReplyBtnToMessageSM);
+
+    const chatMessages = $('chat-messages');
+    if (chatMessages) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mut) => {
+                mut.addedNodes.forEach((node) => {
+                    if (node.nodeType !== 1) return;
+                    if (node.classList && node.classList.contains('ai-message')) {
+                        attachReplyBtnToMessageSM(node);
+                    }
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('.ai-message').forEach(attachReplyBtnToMessageSM);
+                    }
+                });
+            });
+        });
+        observer.observe(chatMessages, { childList: true, subtree: true });
+    }
+
+    document.addEventListener('mouseup', (e) => {
+        if (e.target.closest && (e.target.closest('#reply-popup') || e.target.closest('.reply-preview-bar'))) return;
+
+        setTimeout(() => {
+            const sel = window.getSelection();
+            if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+                hideReplyPopupSM();
+                return;
+            }
+            const text = sel.toString().trim();
+            if (!text) {
+                hideReplyPopupSM();
+                return;
+            }
+            const range = sel.getRangeAt(0);
+            const ancestor = range.commonAncestorContainer;
+            const node = ancestor.nodeType === 1 ? ancestor : ancestor.parentElement;
+            if (!node || !node.closest('.message, .scm-message')) {
+                hideReplyPopupSM();
+                return;
+            }
+            const rect = range.getBoundingClientRect();
+            if (rect && (rect.width || rect.height)) {
+                showReplyPopupSM(rect);
+            }
+        }, 10);
+    });
+
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) hideReplyPopupSM();
+    });
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.closest && e.target.closest('#reply-popup')) return;
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) hideReplyPopupSM();
+    });
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────
 
 function bootstrapApp() {
@@ -2116,6 +2375,7 @@ function bootstrapApp() {
     initStudyTools();
     initModals();
     initToolsAndSymbols();
+    initReplyFeature();
 
     // Auto-collapse right sidebar on mobile
     if (window.innerWidth <= 1200) {

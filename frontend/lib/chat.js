@@ -5,7 +5,20 @@
 import { generateUUID, nowTimeLabel, autoResize, scrollToBottom, appState, persistActiveSession } from './helpers.js';
 import { formatMessage } from './markdown.js';
 import { imageState, removeImagePreview, setImageUploadUI } from './imageUpload.js';
-import { escapeAttr } from './helpers.js';  // ✅ FIX (C-03): import for URL sanitization
+import { escapeAttr, escapeHtml } from './helpers.js';  // ✅ FIX (C-03): import for URL sanitization
+
+// ── Reply Context Parser ─────────────────────────────────────
+// Detects messages stored with the reply-to prefix and splits
+// them into the quoted snippet + the user's actual text. Used so
+// the user's bubble can render a Telegram-style quote block above
+// the message and still keep the prefix in LLM history.
+const REPLY_PREFIX_RE = /^\[User is replying to this specific part of your previous response: "([\s\S]*?)"\]\n\n([\s\S]*)$/;
+export function parseReplyText(text) {
+    if (!text) return { quoted: null, message: text || '' };
+    const match = String(text).match(REPLY_PREFIX_RE);
+    if (match) return { quoted: match[1], message: match[2] };
+    return { quoted: null, message: text };
+}
 
 // ── Search Sources Renderer ──────────────────────────────────
 window.renderSearchSources = function(msgDiv, data) {
@@ -123,11 +136,22 @@ export function addMessage(text, sender, imageUrl = null, isError = false, opts 
         `;
     } else {
         const userName = document.querySelector('#nav-user-avatar img')?.alt || 'User';
+        // Detect a "[User is replying to ...]" prefix so we can render the
+        // quoted snippet as a separate quote block above the user's text.
+        const { quoted, message: displayText } = parseReplyText(text);
+        if (quoted) msgDiv.dataset.replyQuote = quoted;
+        const quoteHtml = quoted
+            ? `<div class="message-reply-quote">
+                    <span class="reply-quote-label">↩ Replying to</span>
+                    <div class="reply-quote-text">${escapeHtml(quoted)}</div>
+               </div>`
+            : '';
         msgDiv.innerHTML = `
             <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
                 <div class="message-content" style="max-width: 100%;">
                     ${imageUrl ? `<img src="${escapeAttr(imageUrl)}" class="message-image" data-action="zoom-media" alt="Uploaded image">` : ''}
-                    ${text && text !== '📷 Image Message' ? `<div class="text-body">${text}</div>` : ''}
+                    ${quoteHtml}
+                    ${displayText && displayText !== '📷 Image Message' ? `<div class="text-body">${displayText}</div>` : ''}
                 </div>
                 <div class="message-actions-inline" style="display: flex; gap: 4px; align-items: center; margin-top: 6px; margin-right: 4px;">
                     <span class="message-time" data-role="time">${opts.timeLabel || nowTimeLabel()}</span>
@@ -155,7 +179,10 @@ export function addMessage(text, sender, imageUrl = null, isError = false, opts 
     if (text && sender === 'ai' && body) {
         body.innerHTML = formatMessage(text);
     } else if (text && sender === 'user' && body) {
-        body.textContent = text;
+        // For user messages, the text-body shows only the actual user
+        // text (sans reply prefix); the quote is rendered separately above.
+        const { message: displayText } = parseReplyText(text);
+        body.textContent = displayText;
     }
 
     return msgDiv;
@@ -188,6 +215,17 @@ export async function handleSend() {
     }
 
     if (!msg.trim() && !imageState.file) return;
+
+    // ── Reply Context (Req: Reply to Message) ─────────────────
+    // If the user is replying to a quoted snippet, capture the
+    // context now and clear the UI so the bar disappears
+    // immediately when the user hits Send.
+    const replyCtx = window.replyContext || null;
+    if (replyCtx && typeof window.clearReplyContext === 'function') {
+        window.clearReplyContext();
+    } else if (replyCtx) {
+        window.replyContext = null;
+    }
 
     // ── Guest usage limits (Req #1) ────────────────────────────
     // Non-authenticated users: 2 messages total, 5 image uploads/day.
@@ -271,9 +309,15 @@ export async function handleSend() {
     if (sendBtnIcon) sendBtnIcon.textContent = 'pending';
 
     // ── Add User Message ──
-    const userMsgEl = addMessage(msg, 'user', attachedImageForChat);
+    // If the user is replying to a snippet, store the message with the
+    // reply prefix so the chat bubble can render the quote AND the
+    // history persists across page reloads (Supabase keeps the prefix).
+    const messageForBubble = replyCtx
+        ? `[User is replying to this specific part of your previous response: "${replyCtx}"]\n\n${msg || ''}`
+        : msg;
+    const userMsgEl = addMessage(messageForBubble, 'user', attachedImageForChat);
     try {
-        if (_saveMessageFn) await _saveMessageFn(msg || '', 'user', attachedImageForBackend || attachedImageForChat);
+        if (_saveMessageFn) await _saveMessageFn(messageForBubble || '', 'user', attachedImageForBackend || attachedImageForChat);
     } catch (e) {
         console.warn('Could not save to Supabase history:', e);
     }
@@ -291,9 +335,15 @@ export async function handleSend() {
         const recentMsgs = Array.from(messageElements).slice(-10);
         recentMsgs.forEach((el) => {
             const isUser = el.classList.contains('user-message');
-            const text = el.querySelector('.text-body')?.textContent;
-            if (text) {
-                historyForBackend.push({ role: isUser ? 'user' : 'assistant', content: text });
+            let textContent = el.querySelector('.text-body')?.textContent || '';
+            // Re-attach the reply prefix from data-reply-quote so the LLM
+            // history mirrors exactly what was sent on the original turn.
+            const dq = el.dataset?.replyQuote;
+            if (isUser && dq) {
+                textContent = `[User is replying to this specific part of your previous response: "${dq}"]\n\n${textContent}`;
+            }
+            if (textContent) {
+                historyForBackend.push({ role: isUser ? 'user' : 'assistant', content: textContent });
             }
         });
 
@@ -314,11 +364,19 @@ export async function handleSend() {
                 </div>`;
         }
 
+        // ── Reply Context: prepend a quoted-reply prefix ──
+        // Display in the user bubble stays clean (just `msg`),
+        // but the backend question is wrapped so the LLM understands
+        // exactly which part of its previous response is being replied to.
+        const questionForApi = replyCtx
+            ? `[User is replying to this specific part of your previous response: "${replyCtx}"]\n\n${finalMsg}`
+            : finalMsg;
+
         const response = await fetch(`${API_URL}/solve_stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                question: finalMsg,
+                question: questionForApi,
                 user_id: appState.currentUserId,
                 history: historyForBackend,
                 mode: appState.currentMode,
@@ -500,6 +558,10 @@ function handleAiAction(btn) {
         }
 
         if (prompt) {
+            // Preserve the reply quote of the user message we're regenerating
+            // for, so the rerun keeps the same quoted context.
+            const carriedReplyQuote = userMsgEl?.dataset?.replyQuote || null;
+
             // Remove the user message and all subsequent messages
             if (userMsgEl) {
                 let next = userMsgEl.nextElementSibling;
@@ -521,6 +583,7 @@ function handleAiAction(btn) {
 
             const ci = document.getElementById('chat-search-input') || document.getElementById('main-search-input');
             if (ci) ci.value = prompt;
+            if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
             handleSend();
         }
     } else if (action === 'like') {
@@ -595,6 +658,9 @@ function handleUserAction(btn) {
             textBody.style.display = '';
             if (actionsInline) actionsInline.style.display = 'flex';
 
+            // Preserve the reply quote (if any) for the resent message.
+            const carriedReplyQuote = msgEl?.dataset?.replyQuote || null;
+
             // Remove all subsequent messages (the AI response to this message and anything after)
             let next = msgEl.nextElementSibling;
             while (next) {
@@ -607,6 +673,7 @@ function handleUserAction(btn) {
             // Resend with new text
             const ci = document.getElementById('chat-search-input') || document.getElementById('main-search-input');
             if (ci) ci.value = newText;
+            if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
             handleSend();
         });
 
@@ -614,6 +681,9 @@ function handleUserAction(btn) {
         // ── RESEND: Just resend the same message ──
         const text = msgContent?.querySelector('.text-body')?.textContent;
         if (!text) return;
+
+        // Preserve the reply quote (if any) for the resent message.
+        const carriedReplyQuote = msgEl?.dataset?.replyQuote || null;
 
         let next = msgEl.nextElementSibling;
         while (next) {
@@ -625,6 +695,7 @@ function handleUserAction(btn) {
 
         const ci = document.getElementById('chat-search-input') || document.getElementById('main-search-input');
         if (ci) ci.value = text;
+        if (carriedReplyQuote) window.replyContext = carriedReplyQuote;
         handleSend();
     } else if (action === 'copy-user') {
         const text = msgContent?.querySelector('.text-body')?.innerText;

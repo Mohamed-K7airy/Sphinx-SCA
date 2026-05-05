@@ -437,6 +437,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initGraph();
     initImageUpload();
     initChat();
+    initReplyFeature();
     
     // Close context menus on click outside
     document.addEventListener('click', (e) => {
@@ -806,3 +807,204 @@ window.showAlertModal = function(title, message) {
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
 });
+
+// ============================================================
+// Reply to Message Feature
+// ============================================================
+// Allows the user to:
+//   1. Highlight text inside any message bubble → a small floating
+//      "↩ Reply" popup appears near the selection.
+//   2. Hover over an assistant message → a corner ↩ icon lets them
+//      reply to the entire response.
+// When reply is triggered, a context bar shows above the textarea
+// (in both hero and floating inputs). Hitting Send forwards the
+// quoted snippet to the LLM as a leading "User is replying to..."
+// prefix, so the model knows exactly what is being referenced.
+// ============================================================
+
+window.replyContext = window.replyContext || null;
+
+function ensureReplyPopup() {
+    let popup = document.getElementById('reply-popup');
+    if (popup) return popup;
+    popup = document.createElement('div');
+    popup.id = 'reply-popup';
+    popup.setAttribute('role', 'button');
+    popup.innerHTML = '<span class="reply-icon">↩</span><span>Reply</span>';
+    // mousedown so we can prevent the selection from collapsing
+    popup.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const sel = window.getSelection();
+        const text = sel ? sel.toString().trim() : '';
+        if (text) {
+            window.setReplyContext(text);
+            try { sel.removeAllRanges(); } catch (err) { /* noop */ }
+        }
+        hideReplyPopup();
+    });
+    document.body.appendChild(popup);
+    return popup;
+}
+
+function showReplyPopup(rect) {
+    const popup = ensureReplyPopup();
+    popup.style.display = 'inline-flex';
+    // Position just above the selection, in page coordinates
+    const top = rect.top + window.scrollY - popup.offsetHeight - 8;
+    const left = rect.left + window.scrollX + (rect.width / 2) - (popup.offsetWidth / 2);
+    popup.style.top = Math.max(window.scrollY + 4, top) + 'px';
+    popup.style.left = Math.max(8, left) + 'px';
+}
+
+function hideReplyPopup() {
+    const popup = document.getElementById('reply-popup');
+    if (popup) popup.style.display = 'none';
+}
+
+function renderReplyBars() {
+    // Always re-render: remove existing, then re-add if context active
+    document.querySelectorAll('.reply-preview-bar').forEach(b => b.remove());
+    if (!window.replyContext) return;
+
+    const raw = window.replyContext;
+    const trimmed = raw.length > 80 ? raw.substring(0, 80) + '...' : raw;
+
+    document.querySelectorAll('.input-content').forEach(content => {
+        const bar = document.createElement('div');
+        bar.className = 'reply-preview-bar';
+        const safeText = trimmed
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        bar.innerHTML = `
+            <span class="material-symbols-outlined" style="font-size:14px;color:#f97316;">reply</span>
+            <span class="reply-text">Replying to: "${safeText}"</span>
+            <button class="reply-cancel" type="button" title="Cancel reply">×</button>
+        `;
+        bar.querySelector('.reply-cancel').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.clearReplyContext();
+        });
+        const textarea = content.querySelector('.search-input');
+        if (textarea) {
+            content.insertBefore(bar, textarea);
+        } else {
+            content.insertBefore(bar, content.firstChild);
+        }
+    });
+}
+
+window.setReplyContext = function (text) {
+    if (!text || !text.trim()) return;
+    window.replyContext = text.trim();
+    hideReplyPopup();
+    renderReplyBars();
+    // Focus the appropriate input so the user can start typing
+    const chatInput = document.getElementById('chat-search-input');
+    const mainInput = document.getElementById('main-search-input');
+    const target = (chatInput && chatInput.offsetParent) ? chatInput : mainInput;
+    if (target) target.focus();
+};
+
+window.clearReplyContext = function () {
+    window.replyContext = null;
+    document.querySelectorAll('.reply-preview-bar').forEach(b => b.remove());
+};
+
+function attachReplyBtnToMessage(msgEl) {
+    if (!msgEl.classList || !msgEl.classList.contains('ai-message')) return;
+    
+    // Check if it already has a reply button in the actions
+    if (msgEl.querySelector('.message-actions .message-reply-inline-btn')) return;
+
+    const actions = msgEl.querySelector('.message-actions');
+    if (!actions) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'action-btn message-reply-inline-btn';
+    btn.type = 'button';
+    btn.title = 'Reply';
+    btn.innerHTML = '<span class="material-symbols-outlined">reply</span>';
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const textBody = msgEl.querySelector('.text-body');
+        const text = (textBody?.innerText || textBody?.textContent || '').trim();
+        if (text) window.setReplyContext(text);
+    });
+    actions.appendChild(btn);
+}
+
+function initReplyFeature() {
+    ensureReplyPopup();
+
+    // 1. Add reply button to existing AI messages
+    document.querySelectorAll('.ai-message').forEach(attachReplyBtnToMessage);
+
+    // 2. Observe new messages added to the chat
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mut) => {
+                mut.addedNodes.forEach((node) => {
+                    if (node.nodeType !== 1) return;
+                    if (node.classList && node.classList.contains('ai-message')) {
+                        attachReplyBtnToMessage(node);
+                    }
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('.ai-message').forEach(attachReplyBtnToMessage);
+                    }
+                });
+            });
+        });
+        observer.observe(chatMessages, { childList: true, subtree: true });
+    }
+
+    // 3. Detect text selection inside message bubbles → show popup
+    document.addEventListener('mouseup', (e) => {
+        // Ignore clicks inside the popup or the preview bar
+        if (e.target.closest && (e.target.closest('#reply-popup') || e.target.closest('.reply-preview-bar'))) return;
+
+        // Wait a tick for the selection to settle
+        setTimeout(() => {
+            const sel = window.getSelection();
+            if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+                hideReplyPopup();
+                return;
+            }
+            const text = sel.toString().trim();
+            if (!text) {
+                hideReplyPopup();
+                return;
+            }
+            const range = sel.getRangeAt(0);
+            const ancestor = range.commonAncestorContainer;
+            const node = ancestor.nodeType === 1 ? ancestor : ancestor.parentElement;
+            if (!node || !node.closest('.message, .scm-message')) {
+                hideReplyPopup();
+                return;
+            }
+            const rect = range.getBoundingClientRect();
+            if (rect && (rect.width || rect.height)) {
+                showReplyPopup(rect);
+            }
+        }, 10);
+    });
+
+    // 4. Hide popup when selection is cleared by other means
+    document.addEventListener('selectionchange', () => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) hideReplyPopup();
+    });
+
+    // 5. Hide popup if user mousedowns outside selection / popup
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.closest && e.target.closest('#reply-popup')) return;
+        // If the click is outside any current selection range, hide.
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) hideReplyPopup();
+    });
+}

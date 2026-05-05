@@ -348,23 +348,45 @@
     transform: translateY(-1px);
 }
 
-/* ─── Better Skeleton Pulse ─────────────────────────────────── */
+/* ─── AI Thinking Animation (Replaces Skeleton) ─────────────── */
 .stream-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 8px 0 4px;
+    display: none !important;
 }
 
-.stream-skeleton .skeleton-line {
-    height: 14px;
-    width: 100%;
-    max-width: 520px;
-    border-radius: 7px;
+/* Delete the AI name completely */
+.ai-name {
+    display: none !important;
 }
 
-.stream-skeleton .skeleton-line.w-70 { width: 70%; }
-.stream-skeleton .skeleton-line.w-45 { width: 45%; }
+/* Delete the AI logo after streaming finishes */
+.ai-message:not(:has([data-role="skeleton"])):not(:has(.typing-cursor)) .message-avatar {
+    display: none !important;
+}
+
+.ai-message:has([data-role="skeleton"]) .message-avatar {
+    overflow: visible;
+    position: relative;
+}
+
+.ai-message:has([data-role="skeleton"]) .message-avatar::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 2px solid transparent;
+    border-top-color: var(--primary, #3b82f6);
+    border-right-color: var(--primary, #3b82f6);
+    border-radius: 50%;
+    animation: avatarSpin 0.8s linear infinite;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes avatarSpin {
+    to { transform: rotate(360deg); }
+}
 
 /* ─── Typing Cursor (streaming) ──────────────────────────────── */
 .typing-cursor {
@@ -430,4 +452,146 @@
     .ai-message .text-body table {
         font-size: 0.85em;
     }
+}
+
+/* ─── Reply to Message Feature ─────────────────────────────── */
+/* Make message bubbles position-relative so the corner reply
+   button can be absolutely placed in the top-right.            */
+.message,
+.scm-message {
+    position: relative;
+}
+
+/* Floating popup that appears near a text selection */
+#reply-popup {
+    position: absolute;
+    background: #1e1e2e;
+    border: 1px solid #f97316;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    color: #fff;
+    cursor: pointer;
+    z-index: 9999;
+    display: none;
+    gap: 4px;
+    align-items: center;
+    user-select: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    transition: transform 0.15s ease;
+}
+
+#reply-popup:hover {
+    transform: translateY(-1px);
+}
+
+#reply-popup .reply-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* Bar above the textarea showing the active reply context */
+.reply-preview-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-left: 3px solid #f97316;
+    background: rgba(249, 115, 22, 0.08);
+    border-radius: 6px;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.reply-preview-bar .reply-text {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reply-preview-bar .reply-cancel {
+    cursor: pointer;
+    font-size: 14px;
+    color: #f97316;
+    background: none;
+    border: none;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+.reply-preview-bar .reply-cancel:hover {
+    color: #fdba74;
+}
+
+/* Hover reply icon in the top-right of an AI message bubble */
+.message-reply-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 6px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #aaa;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
+    z-index: 2;
+    line-height: 1;
+}
+
+.message:hover .message-reply-btn,
+.scm-message:hover .message-reply-btn,
+.message-reply-btn:focus {
+    opacity: 1;
+}
+
+.message-reply-btn:hover {
+    background: rgba(249, 115, 22, 0.18);
+    color: #f97316;
+}
+
+/* In-bubble quote shown above the user's text when they replied
+   to a snippet. Styled to look like a Telegram/WhatsApp quote. */
+.message-reply-quote {
+    background: rgba(249, 115, 22, 0.10);
+    border-left: 3px solid #f97316;
+    padding: 6px 10px;
+    margin: 0 0 8px 0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary, #aaa);
+    max-width: 100%;
+    text-align: left;
+}
+
+.message-reply-quote .reply-quote-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 500;
+    color: #f97316;
+    margin-bottom: 3px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.message-reply-quote .reply-quote-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    line-height: 1.5;
+    color: var(--text-secondary, #ccc);
+    font-style: italic;
+}
+
+/* Reduce the bottom margin of the quote when no user text follows
+   (image-only reply) so it doesn't look detached. */
+.message-reply-quote:last-child {
+    margin-bottom: 0;
 }
