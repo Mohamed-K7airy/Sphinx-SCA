@@ -55,34 +55,11 @@ If no changes are needed, return an empty array [].
 Respond ONLY in valid JSON. No markdown backticks, no explanations.
 """
     try:
-        gemini_api_key = os.getenv("GEMINI_API_KEY")
-        response = None
-        
-        if gemini_api_key:
-            try:
-                from openai import AsyncOpenAI
-                gemini_client = AsyncOpenAI(
-                    api_key=gemini_api_key,
-                    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-                )
-                response = await gemini_client.chat.completions.create(
-                    model="gemini-2.5-flash",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.0
-                )
-            except ImportError as e:
-                print(f"Error executing memory agent: {e}")
-                response = None
-            except Exception as e:
-                print(f"Gemini API error during memory update: {e}")
-                response = None
-
-        if response is None:
-            response = await client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.0
-            )
+        response = await client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0
+        )
         #بيشيل الـ ``` لو الرد جاي في شكل كود 
         reply = response.choices[0].message.content.strip()
         reply = re.sub(r'^```(?:json)?\s*', '', reply)

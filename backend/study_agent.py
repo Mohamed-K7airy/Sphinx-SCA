@@ -50,9 +50,9 @@ except ImportError:
     from memory_manager import MemoryManager
 
 try:
-    from backend.llm_manager import client as groq_client, gemini_client
+    from backend.llm_manager import client as groq_client
 except ImportError:
-    from llm_manager import client as groq_client, gemini_client
+    from llm_manager import client as groq_client
 
 logger    = logging.getLogger("sphinx-study-agent-v9")
 study_llm = StudyLLM()
@@ -597,22 +597,13 @@ def _run_agent_loop(user_message: str, context: dict) -> dict:
     for step in range(max_steps):
         logger.info("[Agent] Step %d", step + 1)
         try:
-            if gemini_client is not None:
-                completion = gemini_client.chat.completions.create(
-                    model       = "gemini-2.5-flash",
-                    messages    = messages,
-                    tools       = STUDY_TOOLS,
-                    temperature = 0.4,
-                    max_tokens  = 2500,
-                )
-            else:
-                completion = groq_client.chat.completions.create(
-                    model       = "openai/gpt-oss-120b",
-                    messages    = messages,
-                    tools       = STUDY_TOOLS,
-                    temperature = 0.4,
-                    max_tokens  = 2500,
-                )
+            completion = groq_client.chat.completions.create(
+                model       = "openai/gpt-oss-120b",
+                messages    = messages,
+                tools       = STUDY_TOOLS,
+                temperature = 0.4,
+                max_tokens  = 2500,
+            )
         except Exception as exc:
             logger.error("[Agent] LLM call failed: %s", exc)
             err = str(exc).lower()

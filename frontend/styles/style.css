@@ -791,12 +791,12 @@ body.app-page {
 }
 
 .logo-sphinx {
-    color: var(--primary);
+    color: var(--text-primary);
 }
 
 .logo-sca,
 .logo-gpt {
-    color: var(--text-primary);
+    color: var(--primary);
 }
 
 /* Navigation */

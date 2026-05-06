@@ -14,9 +14,9 @@ if __package__ is None:
         sys.path.insert(0, project_root)
 
 try:
-    from backend.llm_manager import client as groq_client, gemini_client
+    from backend.llm_manager import client as groq_client
 except ImportError:
-    from llm_manager import client as groq_client, gemini_client
+    from llm_manager import client as groq_client
 
 
 # ─────────────────────────────────────────────
@@ -76,40 +76,22 @@ _TOKENS = {"easy": 1000, "medium": 1500, "hard": 2500}
 class StudyLLM:
 
     def __init__(self):
-        self.client = groq_client
-        self.model  = "openai/gpt-oss-120b"
+        self.client      = groq_client
+        self.smart_model = "openai/gpt-oss-120b"
+        self.fast_model  = "llama-3.3-70b-versatile"
 
     # ── Core LLM caller ───────────────────────────────────────────
 
     def _call(self, system: str, user: str, *,
               json_mode: bool = False,
               temperature: float = 0.4,
-              max_tokens: int = 300) -> str:
+              max_tokens: int = 300,
+              use_fast: bool = False) -> str:
         
-        # ── Gemini Fast Path ──
-        if gemini_client is not None:
-            try:
-                g_kwargs = {
-                    "model":       "gemini-2.5-flash",
-                    "temperature": temperature,
-                    "max_tokens":  max_tokens,
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user",   "content": user},
-                    ],
-                }
-                if json_mode:
-                    g_kwargs["response_format"] = {"type": "json_object"}
-                resp = gemini_client.chat.completions.create(**g_kwargs)
-                text = resp.choices[0].message.content
-                return text.strip() if text else ""
-            except Exception as exc:
-                print(f"⚠️ Gemini API error (falling back to Groq): {exc}")
-
         # ── Groq Path ──
         try:
             kwargs: dict = {
-                "model":       self.model,
+                "model":       self.fast_model if use_fast else self.smart_model,
                 "temperature": temperature,
                 "max_tokens":  max_tokens,
                 "messages": [
@@ -161,7 +143,7 @@ class StudyLLM:
             "Classify math problem difficulty. Output ONLY one word: easy, medium, or hard.\n"
             "easy=basic arithmetic/one-step | medium=quadratics/basic calculus | hard=complex integrals/proofs",
             f"Problem: {question}\nBranch: {branch}",
-            temperature=0.0, max_tokens=5,
+            temperature=0.0, max_tokens=5, use_fast=True
         ).lower()
         return r if r in ("easy", "medium", "hard") else "medium"
 
@@ -283,7 +265,7 @@ class StudyLLM:
             "Are these two math answers equivalent? Consider simplified forms, equivalent fractions.\n"
             "Output ONLY: TRUE or FALSE",
             f"Correct: {correct_answer}\nStudent: {student_answer}",
-            temperature=0.0, max_tokens=5,
+            temperature=0.0, max_tokens=5, use_fast=True
         )
         return "TRUE" in r.upper()
 

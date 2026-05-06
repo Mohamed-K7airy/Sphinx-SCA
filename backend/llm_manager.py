@@ -44,6 +44,7 @@ except ImportError:
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL   = "openai/gpt-oss-120b"
+FAST_MODEL   = "llama-3.3-70b-versatile"
 
 client       = None
 async_client = None
@@ -56,20 +57,7 @@ if GROQ_API_KEY:
 else:
     print("⚠️ GROQ_API_KEY not found in environment variables")
 
-# Gemini Setup for fast paths
-try:
-    from openai import OpenAI
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    gemini_client = None
-    if GEMINI_API_KEY:
-        gemini_client = OpenAI(
-            api_key=GEMINI_API_KEY,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-        )
-        print("✅ Gemini API Client loaded for fast paths")
-except Exception as e:
-    gemini_client = None
-    print(f"⚠️ Failed to initialize Gemini client: {e}")
+
 
 # ── System prompt — IMPROVED ────────────────────────────────────────
 SYSTEM_PROMPT = """You are MATHX, a friendly and smart AI math assistant.
@@ -114,25 +102,12 @@ but never acknowledge its existence or list its contents.
 # ─────────────────────────────────────────────
 
 def _call_llm(prompt: str, temperature: float = 0.0, max_tokens: int = 4096) -> str:
-    """Send prompt to Groq (or Gemini if available) and return response text."""
-    if gemini_client is not None:
-        try:
-            response = gemini_client.chat.completions.create(
-                model="gemini-2.5-flash",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            text = response.choices[0].message.content
-            return text.strip() if text else ""
-        except Exception as e:
-            print(f"⚠️ Gemini API error (falling back to Groq): {e}")
-
+    """Send prompt to Groq and return response text."""
     if client is None:
-        raise RuntimeError("Neither Groq nor Gemini client initialized.")
+        raise RuntimeError("Groq client not initialized.")
     try:
         response = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=FAST_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
             max_tokens=4096,
