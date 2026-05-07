@@ -16,6 +16,9 @@ __pycache__/
 # Model large binary files (too large for GitHub)
 **/model.safetensors
 
+# PlantUML jar used to render docs/diagrams (download on demand)
+docs/diagrams/plantuml.jar
+
 # Local environment configs
 .vercel
 .env.local

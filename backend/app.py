@@ -182,7 +182,7 @@ print(f"📦 Engines Loaded: Algebra={algebra_solve is not None}, Calculus={calc
 # ─────────────────────────────────────────────
 
 # ✅ FIX: Restrict CORS to known origins instead of wildcard
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "https://sphinx-sca-production.up.railway.app").split(",")
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "https://mathx-production.up.railway.app").split(",")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins if o.strip()]
 
 # ✅ FIX (S-12): Only add local dev origins when not in production
@@ -537,10 +537,7 @@ except ImportError:
 
 
 async def _extract_image_text(image_data: Optional[str]) -> Optional[str]:
-    """
-    ✅ Vision: Use Llama 4 Scout to extract text/equations from an uploaded image.
-    Returns the extracted text or None if no image or extraction fails.
-    """
+    
     if not image_data:
         return None
     try:
