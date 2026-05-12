@@ -12,6 +12,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
+# ✅ FIX (C-05): Check for None before calling create_client
 try:
     from supabase import create_client, Client
     if SUPABASE_URL and SUPABASE_KEY:
@@ -69,7 +70,7 @@ async def insert_memories(memories: List[EmbeddedMemory]):
         lambda: supabase.table("memories").insert(rows).execute()
     )
 
-#take embeddings للسؤال الحالي ->تبحث عن أقرب memories معنويًا
+
 async def search_memories(
     search_vector: List[float],
     user_id: str,
@@ -82,7 +83,7 @@ async def search_memories(
     if not supabase: return []
 
     result = await asyncio.to_thread(
-        lambda: supabase.rpc( #Function داخل Postgres ->match_memories
+        lambda: supabase.rpc(
             "match_memories",
             {
                 "query_embedding": search_vector,

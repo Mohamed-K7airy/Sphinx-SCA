@@ -44,7 +44,12 @@ except ImportError:
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL   = "openai/gpt-oss-120b"
-FAST_MODEL   = "llama-3.3-70b-versatile"
+# FAST_MODEL: was llama-3.3-70b-versatile but that model now hits 100k TPD
+# rate limits in production. Aligned to the same primary model so the whole
+# backend speaks one model name. Fallback for 429s lives in app.py's
+# `groq_chat_with_fallback`; this constant is only used by direct
+# llm_manager helpers (parser, hints, classifier) which are non-streaming.
+FAST_MODEL   = "openai/gpt-oss-120b"
 
 client       = None
 async_client = None
@@ -658,7 +663,7 @@ async def chat_with_math(
             if connects:
                 line += f" → {connects}"
             if key_insight:
-                line += f"\n💡 Key Insight: {key_insight}"
+                line += f"\nKey Insight: {key_insight}"
             steps_lines.append(line)
         steps_text = "\n".join(steps_lines)
 

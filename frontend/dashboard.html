@@ -827,7 +827,25 @@
 
                     const problemsSolvedStat = document.getElementById('problems-solved-stat');
                     if (problemsSolvedStat) {
+                        // Show the count of distinct study chats as a fast first paint,
+                        // then overwrite with the authoritative lifetime "Solved"
+                        // counter from public.student_stats so the dashboard
+                        // matches the Session Analytics widget on study-mode.html.
                         problemsSolvedStat.textContent = studySessions.length;
+                        try {
+                            const { data: statsRow } = await supabase
+                                .from('student_stats')
+                                .select('total_solved')
+                                .eq('user_id', userId)
+                                .maybeSingle();
+                            if (statsRow && typeof statsRow.total_solved === 'number') {
+                                problemsSolvedStat.textContent = statsRow.total_solved;
+                            }
+                        } catch (e) {
+                            // student_stats table may not exist yet (migration
+                            // not run) — silently fall back to the session count.
+                            console.warn('[dashboard] student_stats unavailable', e);
+                        }
                     }
 
                     // Calculate Saved Notes

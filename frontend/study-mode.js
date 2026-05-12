@@ -13,6 +13,11 @@ import { supabase } from './supabaseClient.js';
 import { initMarkdown, formatMessage } from './lib/markdown.js';
 import { initCalculator, initMathToolbar, initGraph } from './lib/ui.js';
 import { persistActiveSession, getPersistedSession, clearPersistedSession, isPageReload } from './lib/helpers.js';
+import {
+    openSingleQuiz, openPracticeTest, openBranchDiffMenu,
+    openQuizPanel, closeQuizPanel,
+    studyAnalytics, mountSessionAnalytics,
+} from './lib/quiz.js';
 
 // ✅ FIX (M-01, M-02): Define utility functions that were used but never imported
 function escapeHtml(str) {
@@ -35,6 +40,26 @@ function generateUUID() {
         return v.toString(16);
     });
 }
+
+function getCurrentChatContext() {
+    // Get last AI message text from chat
+    const aiMessages = document.querySelectorAll('.ai-message, .assistant-message, [data-role="assistant"]');
+    const lastAI = aiMessages[aiMessages.length - 1];
+    const lastText = lastAI ? (lastAI.innerText || lastAI.textContent || '').slice(0, 800) : '';
+    
+    // Get last user message
+    const userMessages = document.querySelectorAll('.user-message, [data-role="user"]');
+    const lastUser = userMessages[userMessages.length - 1];
+    const lastUserText = lastUser ? (lastUser.innerText || lastUser.textContent || '').slice(0, 300) : '';
+    
+    return {
+        context: lastText,
+        user_question: lastUserText,
+        topic: window.currentMathTopic || 'General Math',
+        unit: window.currentMathUnit || ''
+    };
+}
+window.getCurrentChatContext = getCurrentChatContext;
 
 // ── Reply Context Parser ─────────────────────────────────────
 // Splits a stored "[User is replying to ...]\n\nMSG" string into
@@ -117,9 +142,6 @@ const state = {
     timerInterval: null,
     sessionsCompleted: 0,
     totalDuration: 25 * 60,
-
-    tasks: [],
-    notes: [],
 
     currentMode: 'study',
     isStreaming: false,
@@ -235,13 +257,23 @@ async function initAuthAndHistory() {
     if (session) {
         state.currentUserId = session.user.id;
         fetchHistory(session.user.id);
+        // Analytics: hydrate lifetime totals (Solved / Accuracy / Hints /
+        // Weak topics) from Supabase so the widget shows the student's
+        // real numbers right after the page loads.
+        try { studyAnalytics.setUser(session.user.id); } catch (_) {}
     }
     supabase.auth.onAuthStateChange(async (event, session) => {
         if (session) {
             state.currentUserId = session.user.id;
             fetchHistory(session.user.id);
+            // Re-hydrate the analytics widget when the user signs in / token
+            // refreshes. Idempotent — setUser bails if the userId hasn't
+            // changed and the cloud row was already fetched.
+            try { studyAnalytics.setUser(session.user.id); } catch (_) {}
         } else {
             state.currentUserId = null;
+            // Analytics: wipe the per-user history so the next sign-in starts clean.
+            try { studyAnalytics.setUser(null); } catch (_) {}
             const historyList = $('sidebar-history-list');
             if (historyList) historyList.innerHTML = '<li class="history-item" style="padding:10px; color:var(--text-muted);">Log in to see history</li>';
         }
@@ -269,14 +301,23 @@ async function initAuthAndHistory() {
         }
     });
     $('mobile-left-menu-btn')?.addEventListener('click', () => {
-        $('main-sidebar')?.classList.add('mobile-open');
+        const sidebar = $('main-sidebar');
+        sidebar?.classList.add('mobile-open');
+        sidebar?.classList.remove('collapsed');   // ← show hub pills & full sidebar content
         $('sidebar-overlay')?.classList.add('active');
     });
-    $('toggle-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.toggle('collapsed'));
-    $('close-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.add('collapsed'));
-    $('open-right-panel')?.addEventListener('click', () => $('study-right-sidebar')?.classList.remove('collapsed'));
+    const rightSidebar = $('study-right-sidebar');
+    const setRightPanelOpen = (open) => {
+        if (!rightSidebar) return;
+        rightSidebar.classList.toggle('collapsed', !open);
+        rightSidebar.setAttribute('aria-hidden', open ? 'false' : 'true');
+    };
+    const toggleRightPanel = () => setRightPanelOpen(rightSidebar?.classList.contains('collapsed') ?? true);
+    $('toggle-right-panel')?.addEventListener('click', toggleRightPanel);
+    $('close-right-panel')?.addEventListener('click', () => setRightPanelOpen(false));
+    $('open-right-panel')?.addEventListener('click', () => setRightPanelOpen(true));
     // Req #7: compact header timer also toggles the study tools panel
-    $('compact-timer')?.addEventListener('click', () => $('study-right-sidebar')?.classList.toggle('collapsed'));
+    $('compact-timer')?.addEventListener('click', toggleRightPanel);
     $('sidebar-overlay')?.addEventListener('click', () => {
         $('main-sidebar')?.classList.remove('mobile-open');
         $('main-sidebar')?.classList.add('collapsed');
@@ -488,6 +529,11 @@ async function fetchHistory(userId) {
 async function loadSession(sessionId, opts = {}) {
     state.currentSessionId = sessionId;
     state.isChatActive = true;
+    // Analytics: hydrate the right-sidebar widget with THIS chat's stats so
+    // switching history items no longer leaves stale "Solved / Accuracy /
+    // Time" numbers from the previous chat. The store persists per-session
+    // snapshots in localStorage, so brand-new chats just start clean.
+    try { studyAnalytics.loadSession(sessionId); } catch (_) {}
     // Req #3: persist so a hard refresh restores the same Study Mode chat.
     persistActiveSession('study', sessionId);
     // Tag this as a study session in the registry
@@ -535,8 +581,6 @@ async function loadSession(sessionId, opts = {}) {
         const chatContainer = $('chat-messages');
         chatContainer.innerHTML = '';
         (resolvedMessages || []).forEach(msg => addMessage(msg.content, msg.sender, msg.image_url));
-        // Restore notes and tasks for this specific session
-        loadSessionData(sessionId);
     } catch (err) { console.error('Load session error:', err); }
 }
 
@@ -679,6 +723,38 @@ function initChat() {
             const heroInput = $('hero-search-input');
             if (action === 'problem' && heroInput) heroInput.focus();
             else if (action === 'explain' && heroInput) heroInput.focus();
+            else if (action === 'quiz-single') {
+                // Single MCQ shows the simple branch picker (openBranchDiffMenu
+                // hides the difficulty step for kind='single' since it doesn't
+                // shape a 1-question pull) so the student explicitly chooses
+                // the subject instead of always getting an algebra question.
+                openBranchDiffMenu({
+                    trigger: pill,
+                    kind:    'single',
+                    onStart: ({ branch, difficulty }) => {
+                        transitionToChat();
+                        state.studyBranch = branch;
+                        state.studyDifficulty = difficulty;
+                        studyAnalytics.startSession(state.currentSessionId, branch);
+                        const draftText = (heroInput && heroInput.value ? heroInput.value : '').trim();
+                        const sourceQuestion = state.studyOriginalQuestion || draftText || '';
+                        openSingleQuizForCurrentQuestion({
+                            branch,
+                            difficulty,
+                            sourceQuestion,
+                        });
+                    },
+                });
+            }
+            else if (action === 'quiz-test') {
+                // Practice Test opens the full setup drawer (Topic chips +
+                // Difficulty cards + Number-of-questions stepper + Time
+                // Limit toggle) defined in study-mode.html (#qp-drawer /
+                // #qp-screen-setup). Wired to window.openPracticeDrawer.
+                if (typeof window.openPracticeDrawer === 'function') {
+                    window.openPracticeDrawer();
+                }
+            }
         });
     });
 
@@ -980,6 +1056,39 @@ function bindStudyChatActions() {
     });
 }
 
+function buildQuizContextHintFor(branch, sourceQuestion) {
+    const hintParts = [];
+    hintParts.push(capitalizeFirst(branch || 'algebra'));
+    if (sourceQuestion) {
+        const q = String(sourceQuestion).replace(/\s+/g, ' ').trim();
+        if (q.length > 0) hintParts.push(q.length > 80 ? q.slice(0, 77) + '…' : q);
+    }
+    return hintParts.join(' · ');
+}
+
+function buildQuizContextHint() {
+    return buildQuizContextHintFor(
+        state.studyBranch || 'algebra',
+        state.studyOriginalQuestion ? String(state.studyOriginalQuestion).trim() : '',
+    );
+}
+
+function openSingleQuizForCurrentQuestion(options = {}) {
+    const branch = options.branch || state.studyBranch || 'algebra';
+    const difficulty = options.difficulty || state.studyDifficulty || 'medium';
+    const sourceQuestion = options.sourceQuestion != null
+        ? String(options.sourceQuestion || '').trim()
+        : (state.studyOriginalQuestion ? String(state.studyOriginalQuestion).trim() : '');
+    openQuizPanel({
+        branch,
+        difficulty,
+        count: 1,
+        contextHint: buildQuizContextHintFor(branch, sourceQuestion),
+        sourceQuestion,
+        adaptive: false,
+    });
+}
+
 function initModeDropdowns() {
     ['hero', 'chat'].forEach(type => {
         const btn = $(`${type}-mode-btn`) || $(`${type}-mode-dropdown-btn`);
@@ -1020,8 +1129,11 @@ function transitionToChat() {
         // Tag the new session as a Study Mode session so other pages
         // (index.html, dashboard.html) can redirect to study-mode.html
         tagSessionAsStudy(state.currentSessionId);
-        // Start with a clean notes/tasks slate for this fresh session
-        loadSessionData(state.currentSessionId);
+        // Analytics: hop the right-sidebar widget to this brand-new session
+        // so its numbers (Solved / Accuracy / Time) don't inherit from the
+        // previous chat that was on screen. studyAnalytics.startSession is
+        // still called later when the user actually starts a study run.
+        try { studyAnalytics.loadSession(state.currentSessionId); } catch (_) {}
     }
     // Req #3: remember this session so a hard refresh restores the same chat.
     persistActiveSession('study', state.currentSessionId);
@@ -1357,6 +1469,10 @@ async function handleStudySend(text, imageUrl, type, apiTextOverride) {
             const data = await res.json();
             const content = extractContent(data);
             aiTextDiv.innerHTML = formatMessage(content);
+            // Issue #6: an identity question or greeting mid-session should NOT
+            // strip the session controls. Re-append Hint/Solve/End so the
+            // student can keep working after the aside.
+            if (state.activeStudySessionId) appendStudyActions(aiMsgDiv, 'active');
             saveMessageToSupabase(content, 'ai');
             state.isStreaming = false;
             return;
@@ -1440,6 +1556,11 @@ async function handleStudySend(text, imageUrl, type, apiTextOverride) {
             state.activeStudySessionId = startData.session_id;
             state.studyDifficulty = startData.difficulty || 'medium';
 
+            // Analytics: start a fresh session, set the branch, and reflect
+            // the agent's first phase so the sidebar lights up immediately.
+            studyAnalytics.startSession(startData.session_id, state.studyBranch);
+            if (startData.next_phase) studyAnalytics.setPhase(startData.next_phase);
+
             // ✅ FIX: If the backend generated a specific math problem (the user
             // typed something like "give me a problem"), update studyOriginalQuestion
             // with the actual generated problem so hint/solve work correctly.
@@ -1492,6 +1613,14 @@ async function handleStudySend(text, imageUrl, type, apiTextOverride) {
             const content = extractCheckContent(checkData);
             aiTextDiv.innerHTML = formatMessage(content || 'Let me think about that... 💭');
 
+            // Analytics: record the attempt against the active branch, plus
+            // any phase transition the backend just performed.
+            studyAnalytics.recordAttempt({
+                branch:  state.studyBranch,
+                correct: !!checkData.is_correct,
+            });
+            if (checkData.next_phase) studyAnalytics.setPhase(checkData.next_phase);
+
             if (checkData.is_correct || checkData.next_phase === 'practice' || checkData.next_phase === 'summary') {
                 state.studyProblemsSolved++;
                 state.studyStreak++;
@@ -1513,45 +1642,72 @@ async function handleStudySend(text, imageUrl, type, apiTextOverride) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// FIX 2: LOCAL INTENT CLASSIFIER
-// Replaces the /study/classify API call — runs instantly, no latency
-// Same logic as study_llm.py classify_intent()
+// LOCAL INTENT CLASSIFIER
+// Replaces the /study/classify API call — runs instantly, no latency.
+// Mirrors study_llm.py classify_intent().
+//
+// Issue #1 + #6 (vague study requests should ALWAYS start a session):
+//   • Default for ambiguous text → 'study' (was 'casual'), so the user
+//     gets a session + Hint/Solve/End buttons from the first message.
+//   • 'casual' is now reserved for true greetings, thanks/bye, and
+//     identity questions ("who are you") ONLY — nothing math-adjacent.
 // ══════════════════════════════════════════════════════════════
+
+// Identity-question pattern kept in sync with study_llm._IDENTITY_PATTERNS so
+// "who are you" gets the deterministic canonical reply and never starts a session.
+const IDENTITY_RE = /\b(who\s*(?:are|r)\s*(?:you|u)|what\s*are\s*you|what(?:'?s|s|\s+is)\s+your\s+name|what\s+do\s+you\s+(?:do|call\s+yourself)|introduce\s+yourself|tell\s+me\s+about\s+(?:you|yourself)|who\s+is\s+this|who\s+made\s+you|who\s+built\s+you)\b|من\s*ان(?:ت|تَ)|من\s*أنت|من\s+هذا|(?:ايه|إيه|ما|ما\s+هو)\s+اسمك|اسمك\s+(?:ايه|إيه|ما)|عرّ?فني\s+بنفسك|(?:اخبرني|أخبرني)\s+عن\s+نفسك/i;
+
 function classifyIntentLocal(text, imageUrl = null) {
     // If an image was uploaded, it's almost definitely a study/math problem
     if (imageUrl) return 'study';
 
-    const t = text.trim().toLowerCase();
+    const raw = (text || '').trim();
+    const t   = raw.toLowerCase();
 
-    // Math operators / expressions → study
+    // ── 0. IDENTITY — always casual, never starts a session
+    if (IDENTITY_RE.test(raw)) return 'casual';
+
+    // ── 1. PURE GREETINGS / FAREWELLS / THANKS — casual
+    // Match ONLY when the entire message is a greeting (with optional emoji/punct).
+    if (/^(hi|hello|hey|yo|sup|hola|مرحبا|اهلا|أهلاً|السلام|ازيك|صباح\s+الخير|مساء\s+الخير|شكرا|شكراً|thanks|thank\s+you|thx|ty|bye|goodbye|see\s+ya|كيفك|عامل\s+ايه|إزيك)[\s!?.,❤️👋🙏😊]*$/i.test(t)) {
+        return 'casual';
+    }
+
+    // ── 2. MATH OPERATORS / EXPRESSIONS → study
     if (/[\d]+\s*[+\-*/^=×÷]\s*[\d]/.test(t)) return 'study';
     if (/[a-zA-Z]\s*[+\-*/^=]/.test(t)) return 'study';
     if (/\\frac|\\sqrt|\\int|\\sum/.test(t)) return 'study';
     if (/\d+x|\d+y|\d+z/.test(t)) return 'study';
 
-    // Give-up
-    if (/i give up|show.?solution|show.?answer|استسلم|وريني الحل|ورني الحل|حل لي|حلها/.test(t)) return 'giveup';
+    // ── 3. EXPLICIT GIVE-UP
+    if (/i\s+give\s+up|(?:show|tell|give)\s+(?:me\s+)?(?:the\s+)?(?:solution|answer)|just\s+(?:give|tell)\s+me\s+the\s+answer|استسلم|وريني\s+الحل|ورني\s+الحل|حل\s+لي|حلها/.test(t)) return 'giveup';
 
-    // Help / confused
-    if (/مش فاهم|مش عارف|لا أفهم|لا افهم|ساعدني|help me|confused|stuck|i.?m lost|don.?t understand/.test(t)) return 'help';
+    // ── 4. SEARCH (videos / news) — distinct from study
+    if (/^(?:search|find\s+me|show\s+me)\s+(?:a\s+)?(?:video|tutorial|youtube)|find\s+me\s+videos|ابحث\s+(?:عن|لي)\s+فيديو|أخبار|news\s+about|who\s+is\s+(?:elon|trump|the\s+president)|what.?s\s+happening\s+in\s+the\s+world/i.test(t)) return 'search';
 
-    // Explain / theory
-    if (/explain|اشرح|وضح|فهمني|ايه هو|what is|what are|يعني ايه|definition|concept/.test(t)) return 'explain';
+    // ── 5. EXPLAIN — only when it's clearly conceptual, NOT a problem
+    // "what is a derivative" → explain. "what is 2+2" → study (caught above).
+    // We require an explicit concept word AND no problem-y operators.
+    if (/^(what\s+is|what\s+are|define|definition\s+of|اشرح|وضح|فهمني|ايه\s+هو|يعني\s+ايه|تعريف)\b/i.test(t) &&
+        !/solve|calculate|evaluate|simplify|factor|compute|find\s+(?:the|x|y|value)/.test(t)) {
+        return 'explain';
+    }
 
-    // Search
-    if (/search|ابحث|فيديو|youtube|video|find me videos|أخبار|news|who is|what.?s happening/.test(t)) return 'search';
+    // ── 6. EXPLICIT HELP — student is confused about a SPECIFIC thing
+    // We require an emotional/help marker (confused / stuck / lost / مش فاهم).
+    // Generic "help me with algebra" is intentionally NOT help — it's a vague
+    // study request that should start a session.
+    if (/i('?m| am)\s+(?:confused|stuck|lost|so\s+lost)|don.?t\s+understand|i\s+don.?t\s+get\s+(?:this|it)|please\s+help|مش\s+فاهم|مش\s+عارف|لا\s+أفهم|لا\s+افهم/i.test(t)) {
+        return 'help';
+    }
 
-    // Casual
-    if (/^(hi|hello|hey|مرحبا|اهلا|السلام|ازيك|صباح|مساء|شكرا|thanks|bye|كيفك|عامل ايه)[\s!?.]*$/.test(t)) return 'casual';
-    if (/about (me|you)|my name|who am i|do you know|tell me|what do you|who are you|how are you|what can you|عني|اسمي|من انا|هل تعرفني|ماذا تعرف|اخبرني|كيف حالك|من انت/.test(t)) return 'casual';
+    // ── 7. MATH WORDS / VERBS / TOPICS → study
+    if (/solve|حل|factor|simplify|differentiate|integrate|calculate|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد|how\s+many|how\s+much|total|sum|difference|average|كم\s+عدد|ما\s+مجموع|calculus|algebra|geometry|trigonometr|statistics|probability|math|maths|mathematics|equation|derivative|integral|practice|problem|exercise|question|study|learn|تفاضل|جبر|هندسة|رياضيات|مسألة|تمرين|مذاكرة|دراسة/.test(t)) return 'study';
 
-    // Math words (Arabic + English)
-    if (/solve|حل|factor|simplify|differentiate|integrate|calculate|find|evaluate|compute|limit|derive|prove|احسب|بسّط|اشتق|تكامل|عامل|حدد|how many|how much|total|sum|difference|average|كم عدد|ما هو|ما مجموع|calculus|algebra|geometry|math|equation|derivative|integral|practice|problem|تفاضل|جبر|هندسة|رياضيات|مسألة/.test(t)) return 'study';
-
-    // Text with NO explicit math operators Defaults to Casual
-    // (This prevents text with digits like "I am 20 years old" from being falsely classified as math)
-    if (!/[+\-*/=^()[\]{}]/.test(t)) return 'casual';
-
+    // ── 8. DEFAULT — anything else is treated as a (vague) study request so
+    //     the user gets a session + Hint/Solve/End buttons. This is the
+    //     opposite of the previous "default to casual" behaviour and is the
+    //     core of Issue #1.
     return 'study';
 }
 
@@ -1620,6 +1776,8 @@ function appendStudyActions(aiMsgDiv, mode = 'active') {
                     } else {
                         state.studyHintsUsed = Math.min(state.studyHintsUsed + 1, 3);
                     }
+                    // Analytics: mirror the hint count into the sidebar.
+                    studyAnalytics.recordHintUsed();
                     hintTextDiv.innerHTML = formatMessage(content || '💡 Think about the next step...');
                     appendStudyActions(hintMsgDiv, state.studyHintsUsed >= 3 ? 'hints-done' : 'active');
                     saveMessageToSupabase(content, 'ai');
@@ -1665,6 +1823,13 @@ function appendStudyActions(aiMsgDiv, mode = 'active') {
         });
         actionsDiv.appendChild(solveBtn);
 
+        // ── QUIZ MODE BUTTON ──
+        // Inherits the active study branch + difficulty automatically. Opens
+        // the right-sidebar Quiz Session Panel — does NOT navigate away.
+        actionsDiv.appendChild(makeQuizModeBtn());
+        // Single-question MCQ tied to the current study question.
+        actionsDiv.appendChild(makeSingleQuizModeBtn());
+
         // ── END SESSION ──
         actionsDiv.appendChild(makeEndBtn());
 
@@ -1689,6 +1854,10 @@ function appendStudyActions(aiMsgDiv, mode = 'active') {
             streakBadge.innerHTML = `🔥 ${state.studyStreak} streak`;
             actionsDiv.appendChild(streakBadge);
         }
+
+        // ── QUIZ MODE BUTTON ──  (also offered after a solve)
+        actionsDiv.appendChild(makeQuizModeBtn());
+        actionsDiv.appendChild(makeSingleQuizModeBtn());
 
         actionsDiv.appendChild(makeEndBtn());
 
@@ -1765,6 +1934,73 @@ async function handleNextProblem(btn, endpoint, API_URL) {
     }
 }
 
+function makeQuizModeBtn() {
+    // "Quiz Mode" pill — sibling of Hint / Solve / Explain. Opens the full
+    // Practice Test setup drawer (Topic + Difficulty + Number of Questions +
+    // Time Limit) so the in-chat flow matches the hero "Create Practice
+    // Test" pill exactly. The drawer is wired to window.openPracticeDrawer.
+    const btn = document.createElement('button');
+    btn.className = 'study-action-btn quiz-mode-btn';
+    btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px">quiz</span> Quiz Mode`;
+    btn.addEventListener('click', () => {
+        if (typeof window.openPracticeDrawer !== 'function') return;
+        // Pre-fill the topic chip when the active study session has an
+        // identifiable branch so the student doesn't have to re-pick. The
+        // drawer's topic chips are: Calculus / Algebra / Geometry /
+        // Statistics / Linear Algebra — anything else (e.g. trigonometry)
+        // falls through to the drawer's default selection.
+        const sourceQuestion = state.studyOriginalQuestion
+            ? String(state.studyOriginalQuestion).trim()
+            : '';
+        const arg = { sourceQuestion };
+        const branchToTopic = {
+            algebra:        'Algebra',
+            calculus:       'Calculus',
+            geometry:       'Geometry',
+            statistics:     'Statistics',
+            linear_algebra: 'Linear Algebra',
+        };
+        const mapped = branchToTopic[state.studyBranch];
+        if (mapped) arg.topic = mapped;
+        window.openPracticeDrawer(arg);
+    });
+    return btn;
+}
+
+function makeSingleQuizModeBtn() {
+    // One MCQ only — show the simple branch picker so the student picks
+    // the subject (the active study session's branch is pre-selected so
+    // they can just hit Start). Mirrors the hero "Create Practice
+    // Question" pill UX exactly.
+    const btn = document.createElement('button');
+    btn.className = 'study-action-btn quiz-single-mode-btn';
+    btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px">looks_one</span> Single MCQ`;
+    btn.addEventListener('click', () => {
+        openBranchDiffMenu({
+            trigger: btn,
+            kind:    'single',
+            onStart: ({ branch, difficulty }) => {
+                state.studyBranch = branch;
+                state.studyDifficulty = difficulty;
+                const sourceQuestion = state.studyOriginalQuestion
+                    ? String(state.studyOriginalQuestion).trim()
+                    : '';
+                openSingleQuizForCurrentQuestion({
+                    branch,
+                    difficulty,
+                    sourceQuestion,
+                });
+            },
+        });
+    });
+    return btn;
+}
+
+function capitalizeFirst(s) {
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function makeEndBtn() {
     const endBtn = document.createElement('button');
     endBtn.className = 'study-action-btn end-btn';
@@ -1773,8 +2009,25 @@ function makeEndBtn() {
     return endBtn;
 }
 
+// Exposed on window so the Session Analytics widget (rendered by lib/quiz.js
+// inside the right sidebar) can trigger the same end-session flow as the
+// inline action-bar button. Same pattern as window.openPracticeDrawer.
+window.handleEndSession = () => handleEndSession();
+
 async function handleEndSession() {
     if (state.isStreaming) return;
+    // If there's no active study chat yet (user is still on the hero or just
+    // loaded the page), bail out gracefully instead of pinging /study/summary
+    // with a null session id — that just returns a generic error message.
+    if (!state.isChatActive && !state.activeStudySessionId) return;
+
+    // Stop the Focus Timer in the right sidebar (the sidebar pill + the
+    // expanded flip-clock view both reflect state.isRunning, so a single
+    // pauseTimer() halts both surfaces). Also freeze the Session Analytics
+    // "Time" counter so it doesn't keep ticking after the user wrapped up.
+    try { pauseTimer(); } catch (_) {}
+    try { studyAnalytics.endSession(); } catch (_) {}
+
     state.isStreaming = true;
     const summaryMsgDiv = addMessage('', 'ai');
     const summaryTextDiv = summaryMsgDiv.querySelector('.text-body');
@@ -1789,7 +2042,7 @@ async function handleEndSession() {
         // FIX 1: use extractContent
         let content = extractContent(data);
         if (state.studyProblemsSolved > 0) {
-            content += `\n\n**Session Stats:** ${state.studyProblemsSolved} problem(s) solved | Best streak: 🔥 ${state.studyStreak}`;
+            content += `\n\n**Session Stats:** ${state.studyProblemsSolved} problem(s) solved | Best streak: ${state.studyStreak}`;
         }
         summaryTextDiv.innerHTML = formatMessage(content);
         saveMessageToSupabase(content, 'ai');
@@ -1931,14 +2184,32 @@ function initStudyTools() {
     const resetBtn = $('timer-reset-btn');
     const skipBtn = $('timer-skip-btn');
 
-    playBtn?.addEventListener('click', () => state.isRunning ? pauseTimer() : startTimer());
+    const togglePlayPause = () => state.isRunning ? pauseTimer() : startTimer();
+
+    playBtn?.addEventListener('click', togglePlayPause);
+
+    // Compact pill mirror — same handler, so the play/pause icon stays in sync
+    // regardless of which view the user clicked from.
+    $('timer-pill-play')?.addEventListener('click', togglePlayPause);
+
+    // Expand / collapse the Focus Timer in place. Default is collapsed so the
+    // sidebar leads with Session Analytics; the chevron rotates 180° when open.
+    const timerCard   = $('timer-card');
+    const timerToggle = $('timer-toggle');
+    timerToggle?.addEventListener('click', () => {
+        if (!timerCard) return;
+        const collapsed = timerCard.classList.toggle('collapsed');
+        timerToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        timerToggle.title = collapsed ? 'Expand timer' : 'Collapse timer';
+        timerToggle.setAttribute('aria-label', collapsed ? 'Expand timer' : 'Collapse timer');
+    });
+
     resetBtn?.addEventListener('click', () => {
         clearInterval(state.timerInterval);
         state.isRunning = false;
         state.timeRemaining = state.workDuration;
         state.freeTimerElapsed = 0;
-        const playIcon = $('play-icon');
-        if (playIcon) playIcon.textContent = 'play_arrow';
+        _setPlayIcons('play_arrow');
         updateTimerUI();
     });
 
@@ -1950,8 +2221,7 @@ function initStudyTools() {
             clearInterval(state.timerInterval);
             state.isRunning = false;
             state.timeRemaining = 0;
-            const playIcon = $('play-icon');
-            if (playIcon) playIcon.textContent = 'play_arrow';
+            _setPlayIcons('play_arrow');
             if (typeof window.showAlertModal === 'function') {
                 window.showAlertModal('Timer Finished', 'Session skipped! Take a break.');
             }
@@ -1970,8 +2240,7 @@ function initStudyTools() {
 
             clearInterval(state.timerInterval);
             state.isRunning = false;
-            const playIcon = $('play-icon');
-            if (playIcon) playIcon.textContent = 'play_arrow';
+            _setPlayIcons('play_arrow');
 
             if (workMins === 0 && breakMins === 0) {
                 state.isFreeTimer = true;
@@ -1988,159 +2257,29 @@ function initStudyTools() {
     });
 
     updateTimerUI();
-    initTasks();
-    initNotes();
 }
 
-// ── Per-session data helpers ──────────────────────────────────
+function _setPlayIcons(name) {
+    // Keep the full-view play icon and the compact-pill icon in lockstep
+    // so the user sees the same state regardless of which one is visible.
+    setTimerButtonIcon($('play-icon'), name);
+    setTimerButtonIcon($('timer-pill-play-icon'), name);
+}
 
-/**
- * Load notes & tasks for a specific session from localStorage.
- * Falls back to the legacy global keys for sessions created before
- * this feature was added.
- */
-function loadSessionData(sessionId) {
-    const sid = sessionId || 'default';
-
-    // Tasks
-    const taskKey = `study-tasks-${sid}`;
-    const savedTasks = localStorage.getItem(taskKey);
-    if (savedTasks) {
-        try { state.tasks = JSON.parse(savedTasks); } catch (e) { state.tasks = []; }
-    } else if (sid === 'default') {
-        // Legacy fallback for pre-migration sessions
-        const legacy = localStorage.getItem('study-tasks');
-        try { state.tasks = legacy ? JSON.parse(legacy) : []; } catch (e) { state.tasks = []; }
-    } else {
-        state.tasks = [];
+function setTimerButtonIcon(icon, name) {
+    if (!icon) return;
+    if (icon.tagName?.toLowerCase() === 'svg') {
+        icon.innerHTML = name === 'pause'
+            ? '<path d="M7 5h4v14H7z"></path><path d="M13 5h4v14h-4z"></path>'
+            : '<path d="M8 5v14l11-7z"></path>';
+        return;
     }
-
-    // Notes
-    const noteKey = `study-notes-blocks-${sid}`;
-    const savedNotes = localStorage.getItem(noteKey);
-    if (savedNotes) {
-        try { state.notes = JSON.parse(savedNotes); } catch (e) { state.notes = []; }
-    } else if (sid === 'default') {
-        // Legacy fallback
-        const legacy = localStorage.getItem('study-notes-blocks');
-        try { state.notes = legacy ? JSON.parse(legacy) : []; } catch (e) { state.notes = []; }
-    } else {
-        state.notes = [];
-    }
-
-    renderTasks();
-    renderNotes();
-}
-
-function initTasks() {
-    // Tasks are session-scoped now; initStudyTools calls loadSessionData
-    // after session is known, so we just wire up the buttons here.
-    $('task-add-btn')?.addEventListener('click', () => addTask());
-    $('task-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') addTask(); });
-    // ✅ FIX (L-04): Add missing clear tasks button handler
-    $('clear-tasks-btn')?.addEventListener('click', async () => {
-        const confirmed = (typeof window.showConfirmModal === 'function')
-            ? await window.showConfirmModal('Clear all tasks?')
-            : confirm('Clear all tasks?');
-        if (confirmed) {
-            state.tasks = [];
-            saveTasks();
-            renderTasks();
-        }
-    });
-}
-
-function addTask() {
-    const input = $('task-input');
-    const text = input?.value?.trim();
-    if (!text) return;
-    state.tasks.push({ id: Date.now(), text, done: false });
-    input.value = '';
-    saveTasks(); renderTasks();
-}
-
-function toggleTask(id) { state.tasks = state.tasks.map(t => t.id === id ? { ...t, done: !t.done } : t); saveTasks(); renderTasks(); }
-function deleteTask(id) { state.tasks = state.tasks.filter(t => t.id !== id); saveTasks(); renderTasks(); }
-function saveTasks() {
-    const sid = state.currentSessionId || 'default';
-    localStorage.setItem(`study-tasks-${sid}`, JSON.stringify(state.tasks));
-}
-
-function renderTasks() {
-    const list = $('tasks-list');
-    if (!list) return;
-    list.innerHTML = state.tasks.map(task => `
-        <li class="task-item ${task.done ? 'done' : ''}" data-id="${task.id}">
-            <button class="task-checkbox">${task.done ? '<span class="material-symbols-outlined">check_circle</span>' : '<span class="material-symbols-outlined">radio_button_unchecked</span>'}</button>
-            <span class="task-text">${escapeHtml(task.text)}</span>
-            <button class="task-delete-btn"><span class="material-symbols-outlined">delete</span></button>
-        </li>`).join('');
-    list.querySelectorAll('.task-item').forEach(item => {
-        const id = parseInt(item.dataset.id);
-        item.querySelector('.task-checkbox').addEventListener('click', () => toggleTask(id));
-        item.querySelector('.task-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteTask(id); });
-    });
-}
-
-function initNotes() {
-    // Notes are session-scoped now; loadSessionData handles restoration.
-    // Migrate any v1 global notes into the 'default' session slot once.
-    if (!localStorage.getItem('study-notes-migrated')) {
-        const oldNotes = localStorage.getItem('study-notes');
-        if (oldNotes?.trim()) {
-            const migrated = [{ id: Date.now(), text: oldNotes }];
-            localStorage.setItem('study-notes-blocks-default', JSON.stringify(migrated));
-            localStorage.removeItem('study-notes');
-        }
-        localStorage.setItem('study-notes-migrated', '1');
-    }
-    $('note-add-btn')?.addEventListener('click', () => addNote());
-    $('note-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') addNote(); });
-    $('clear-notes-btn')?.addEventListener('click', async () => {
-        const confirmed = (typeof window.showConfirmModal === 'function')
-            ? await window.showConfirmModal('Clear all notes?')
-            : confirm('Clear all notes?');
-
-        if (confirmed) {
-            state.notes = [];
-            saveNotes();
-            renderNotes();
-        }
-    });
-}
-
-function addNote() {
-    const input = $('note-input');
-    const text = input?.value?.trim();
-    if (!text) return;
-    state.notes.push({ id: Date.now(), text });
-    input.value = '';
-    saveNotes(); renderNotes();
-}
-
-function deleteNote(id) { state.notes = state.notes.filter(n => n.id !== id); saveNotes(); renderNotes(); }
-function saveNotes() {
-    const sid = state.currentSessionId || 'default';
-    localStorage.setItem(`study-notes-blocks-${sid}`, JSON.stringify(state.notes));
-}
-function renderNotes() {
-    const list = $('notes-list');
-    if (!list) return;
-    list.innerHTML = state.notes.map(note => `
-        <li class="note-item" data-id="${note.id}">
-            <div class="note-icon"><span class="material-symbols-outlined">description</span></div>
-            <div class="note-text">${escapeHtml(note.text)}</div>
-            <button class="note-delete-btn"><span class="material-symbols-outlined">delete</span></button>
-        </li>`).join('');
-    list.querySelectorAll('.note-delete-btn').forEach(btn => {
-        const id = parseInt(btn.closest('.note-item').dataset.id);
-        btn.addEventListener('click', () => deleteNote(id));
-    });
+    icon.textContent = name;
 }
 
 function startTimer() {
     state.isRunning = true;
-    $('play-icon').textContent = 'pause';
+    _setPlayIcons('pause');
     state.timerInterval = setInterval(() => {
         if (state.isFreeTimer) { state.freeTimerElapsed++; updateTimerUI(); }
         else {
@@ -2148,7 +2287,7 @@ function startTimer() {
             else {
                 clearInterval(state.timerInterval);
                 state.isRunning = false;
-                $('play-icon').textContent = 'play_arrow';
+                _setPlayIcons('play_arrow');
                 if (typeof window.showAlertModal === 'function') {
                     window.showAlertModal('Timer Finished', 'Time is up! Take a break.');
                 } else {
@@ -2159,7 +2298,11 @@ function startTimer() {
     }, 1000);
 }
 
-function pauseTimer() { state.isRunning = false; $('play-icon').textContent = 'play_arrow'; clearInterval(state.timerInterval); }
+function pauseTimer() {
+    state.isRunning = false;
+    _setPlayIcons('play_arrow');
+    clearInterval(state.timerInterval);
+}
 
 function updateTimerUI() {
     let displayTime = state.isFreeTimer ? state.freeTimerElapsed : state.timeRemaining;
@@ -2167,17 +2310,83 @@ function updateTimerUI() {
     const mins = Math.floor(Math.max(0, displayTime) / 60);
     const secs = Math.max(0, displayTime) % 60;
     const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    $('timer-time').textContent = formatted;
-    // Mirror into the compact header timer (Req #7: always visible)
+    const timerTimeEl = $('timer-time');
+    if (timerTimeEl) timerTimeEl.textContent = formatted;
+    // Mirror into the compact pill (shown when the sidebar timer is collapsed)
+    const pillTime = $('timer-pill-time');
+    if (pillTime) pillTime.textContent = formatted;
+    // Legacy compact-timer-time slot (top bar) — keep if some build still uses it.
     const compact = $('compact-timer-time');
     if (compact) compact.textContent = formatted;
-    const ring = $('timer-ring-progress');
-    const circumference = 2 * Math.PI * 100;
-    ring.style.strokeDasharray = circumference;
-    let offset = state.isFreeTimer
-        ? circumference * (1 - (state.freeTimerElapsed % 60) / 60)
-        : (state.workDuration > 0 ? circumference * (state.timeRemaining / state.workDuration) : circumference);
-    ring.style.strokeDashoffset = offset;
+    
+    // Update flip clock digits
+    const mStr = String(mins).padStart(2, '0');
+    const sStr = String(secs).padStart(2, '0');
+    updateFlipDigit('min-tens', mStr[0]);
+    updateFlipDigit('min-ones', mStr[1]);
+    updateFlipDigit('sec-tens', sStr[0]);
+    updateFlipDigit('sec-ones', sStr[1]);
+}
+
+function updateFlipDigit(unit, nextValue) {
+    updateFlipCard(document.querySelector(`[data-flip-unit="${unit}"]`), nextValue);
+}
+
+function setFlipFaceValue(face, value) {
+    if (!face) return;
+    const valueEl = face.querySelector('.flip-card-value');
+    if (valueEl) valueEl.textContent = value;
+    else face.textContent = value;
+}
+
+function setFlipCardStaticValue(card, value) {
+    if (!card) return;
+    setFlipFaceValue(card.querySelector('.flip-card-top'), value);
+    setFlipFaceValue(card.querySelector('.flip-card-bottom'), value);
+}
+
+function createFlipFlap(position, value) {
+    const flap = document.createElement('div');
+    flap.className = `flip-flap flip-flap-${position}`;
+    const valueEl = document.createElement('span');
+    valueEl.className = 'flip-card-value';
+    valueEl.textContent = value;
+    flap.appendChild(valueEl);
+    return flap;
+}
+
+function updateFlipCard(card, nextValue) {
+    if (!card) return;
+    const currentValue = card.dataset.value || card.querySelector('.flip-card-value')?.textContent || nextValue;
+    if (currentValue === nextValue) {
+        card.dataset.value = nextValue;
+        setFlipCardStaticValue(card, nextValue);
+        return;
+    }
+
+    card.querySelectorAll('.flip-flap').forEach(node => node.remove());
+    card.dataset.value = nextValue;
+
+    const topFace = card.querySelector('.flip-card-top');
+    const bottomFace = card.querySelector('.flip-card-bottom');
+    setFlipFaceValue(topFace, nextValue);
+    setFlipFaceValue(bottomFace, currentValue);
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        setFlipCardStaticValue(card, nextValue);
+        return;
+    }
+
+    const topFlap = createFlipFlap('top', currentValue);
+    const bottomFlap = createFlipFlap('bottom', nextValue);
+    card.appendChild(topFlap);
+    card.appendChild(bottomFlap);
+
+    bottomFlap.addEventListener('animationend', () => {
+        setFlipCardStaticValue(card, nextValue);
+        topFlap.remove();
+        bottomFlap.remove();
+    }, { once: true });
 }
 
 // ============================================================
@@ -2377,6 +2586,12 @@ function bootstrapApp() {
     initToolsAndSymbols();
     initReplyFeature();
 
+    // Mount the Session Analytics widget into its sidebar slot. The component
+    // owns its own pub/sub + 1-second time-since-start tick, so this single
+    // call is enough to keep it live for the page lifetime.
+    const analyticsSlot = document.getElementById('session-analytics-card');
+    if (analyticsSlot) mountSessionAnalytics(analyticsSlot);
+
     // Auto-collapse right sidebar on mobile
     if (window.innerWidth <= 1200) {
         document.getElementById('study-right-sidebar')?.classList.add('collapsed');
@@ -2390,18 +2605,23 @@ function bootstrapApp() {
     const navEntry = performance.getEntriesByType('navigation')[0];
     const navType = navEntry ? navEntry.type : 'navigate';
     const isReloadOrBack = navType === 'reload' || navType === 'back_forward';
-    if (!urlParamsObj.get('session') && !isReloadOrBack && studyOverlay) {
+    const isFreshChat = !urlParamsObj.get('session') && !isReloadOrBack;
+    if (isFreshChat && studyOverlay) {
         studyOverlay.classList.add('active');
+    }
+
+    // Fresh "New chat" navigation — wipe the visible analytics so the user
+    // doesn't see the previous chat's Solved / Accuracy / Time bleeding in
+    // before they've sent the first message. The cross-session
+    // weakBranches memory is preserved by the analytics store itself.
+    if (isFreshChat) {
+        try { studyAnalytics.resetActiveView(); } catch (_) {}
     }
 
 
     // ✅ FIX (M-01): Set mode synchronously to avoid visual flash from 'General' → 'Study Agent'
     if (!state.isChatActive) { state.currentMode = 'study'; syncModeUI('study'); }
 
-    // Load global (default-session) notes/tasks for the initial hero view.
-    if (!urlParamsObj.get('session')) {
-        loadSessionData('default');
-    }
 }
 
 if (document.readyState === 'loading') {
@@ -2618,3 +2838,690 @@ window.showAlertModal = function (title, message) {
         if (e.target === overlay && overlay.parentNode) document.body.removeChild(overlay);
     });
 };
+
+// ============================================================
+// QUIZ PANEL DRAWER LOGIC — 4-screen flow:
+//   Setup → Generating → Quiz → Results
+//
+// Public surface (do not rename without updating math-hub.js):
+//   window.openPracticeDrawer(arg1, arg2)  // (topicLabel, unitName) | {object}
+//   window.openQuizPanel                   // alias of the above
+//   window.closePracticeDrawer()
+// ============================================================
+
+const QP_TOPICS = ['Calculus', 'Algebra', 'Geometry', 'Statistics', 'Linear Algebra'];
+
+const qpState = {
+    screen:           'setup',
+    topic:            'Calculus',
+    unit:             'General Practice',
+    difficulty:       'medium',
+    numQuestions:     5,
+    timeLimit:        false,
+    timeMinutes:      10,
+
+    questions:        [],
+    currentIndex:     0,
+    answers:          [],   // selectedIdx | null per question
+    locked:           false,
+    answered:         false,
+
+    elapsedSeconds:   0,
+    remainingSeconds: 0,
+    timerInterval:    null,
+
+    genAbort:         null,
+    score:            0,
+    streak:           0,
+};
+
+const qpEl = {
+    overlay:       document.getElementById('qp-overlay'),
+    drawer:        document.getElementById('qp-drawer'),
+    closeBtn:      document.getElementById('qp-close-btn'),
+    title:         document.getElementById('qp-title'),
+
+    body:          document.getElementById('qp-body'),
+    screenSetup:   document.getElementById('qp-screen-setup'),
+    screenGen:     document.getElementById('qp-screen-generating'),
+    screenQuiz:    document.getElementById('qp-screen-quiz'),
+    screenResult:  document.getElementById('qp-screen-results'),
+
+    topicChips:    document.getElementById('qp-topic-chips'),
+    diffGrid:      document.getElementById('qp-diff-grid'),
+    stepDownBtn:   document.getElementById('qp-step-down'),
+    stepUpBtn:     document.getElementById('qp-step-up'),
+    stepValueEl:   document.getElementById('qp-step-value'),
+    timeToggle:    document.getElementById('qp-time-toggle'),
+    timePills:     document.getElementById('qp-time-pills'),
+    generateBtn:   document.getElementById('qp-generate-btn'),
+
+    genInner:      document.getElementById('qp-gen-inner'),
+    cancelGenBtn:  document.getElementById('qp-cancel-gen-btn'),
+
+    qIndexEl:      document.getElementById('qp-q-index'),
+    qTotalEl:      document.getElementById('qp-q-total'),
+    quizTimer:     document.getElementById('qp-quiz-timer'),
+    timerText:     document.getElementById('qp-timer'),
+    quitBtn:       document.getElementById('qp-quit-btn'),
+    progressBar:   document.getElementById('qp-progress-bar'),
+    qNumEl:        document.getElementById('qp-q-num'),
+    questionText:  document.getElementById('qp-question-text'),
+    optionsGrid:   document.getElementById('qp-options-grid'),
+    stepBtn:       document.getElementById('qp-step-btn'),
+    stepBtnText:   document.getElementById('qp-step-btn-text'),
+    stepsPanel:    document.getElementById('qp-steps-panel'),
+    nextBtn:       document.getElementById('qp-next-btn'),
+    nextBtnText:   document.getElementById('qp-next-btn-text'),
+
+    resultsTitle:  document.getElementById('qp-results-title'),
+    ringFill:      document.getElementById('qp-ring-fill'),
+    ringPct:       document.getElementById('qp-ring-pct'),
+    ringScore:     document.getElementById('qp-ring-score'),
+    perfBadge:     document.getElementById('qp-perf-badge'),
+    resScore:      document.getElementById('qp-res-score'),
+    resAcc:        document.getElementById('qp-res-acc'),
+    resTime:       document.getElementById('qp-res-time'),
+    reviewCount:   document.getElementById('qp-review-count'),
+    reviewList:    document.getElementById('qp-review-list'),
+    tryAgainBtn:   document.getElementById('qp-btn-try-again'),
+    newQuizBtn:    document.getElementById('qp-btn-new-quiz'),
+    mistakesBtn:   document.getElementById('qp-btn-mistakes'),
+};
+
+// ── Math + helpers ────────────────────────────────────────
+function qpRenderMath(text) {
+    if (!text) return '';
+    let html = String(text);
+    const renderStr = (str, isDisplay) => {
+        try {
+            if (typeof katex !== 'undefined') {
+                return katex.renderToString(str, { displayMode: isDisplay, throwOnError: false });
+            }
+            return str;
+        } catch (_) { return str; }
+    };
+    html = html.replace(/\$\$([\s\S]*?)\$\$|\\\[([\s\S]*?)\\\]/g, (_m, p1, p2) => renderStr(p1 || p2, true));
+    html = html.replace(/\$([^$\n]+?)\$|\\\(([\s\S]*?)\\\)/g, (_m, p1, p2) => renderStr(p1 || p2, false));
+    if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+        try { html = marked.parse(html); } catch (_) {}
+    }
+    return html;
+}
+function qpRenderInline(text) {
+    // Same as qpRenderMath but unwraps outer <p> tags so it sits cleanly
+    // inside line-clamped containers.
+    return qpRenderMath(text).replace(/<\/?p>/g, '');
+}
+function qpEsc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+function qpFmtTime(secs) {
+    const v = Math.max(0, Math.floor(secs));
+    const m = Math.floor(v / 60).toString().padStart(2, '0');
+    const s = (v % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+// ── Screen transitions + step indicator ─────────────────
+const QP_SCREEN_STEP = { setup: 1, generating: 2, quiz: 3, results: 4 };
+
+function qpGoToScreen(name) {
+    qpState.screen = name;
+    [qpEl.screenSetup, qpEl.screenGen, qpEl.screenQuiz, qpEl.screenResult].forEach(s => s && s.classList.remove('active'));
+    const target = ({
+        setup:      qpEl.screenSetup,
+        generating: qpEl.screenGen,
+        quiz:       qpEl.screenQuiz,
+        results:    qpEl.screenResult,
+    })[name];
+    if (target) target.classList.add('active');
+    if (qpEl.body) qpEl.body.scrollTop = 0;
+
+    const stepNum = QP_SCREEN_STEP[name];
+    document.querySelectorAll('.qp-step').forEach(el => {
+        const i = parseInt(el.dataset.step, 10);
+        el.classList.toggle('active', i === stepNum);
+        el.classList.toggle('done',   i <  stepNum);
+    });
+}
+
+// ── Open / close ─────────────────────────────────────────
+function qpResetToSetup() {
+    qpCleanupTimer();
+    qpState.questions    = [];
+    qpState.answers      = [];
+    qpState.currentIndex = 0;
+    qpState.score        = 0;
+    qpState.streak       = 0;
+    qpState.locked       = false;
+    qpState.answered     = false;
+    qpGoToScreen('setup');
+    qpSyncSetupUI();
+}
+function qpSyncSetupUI() {
+    document.querySelectorAll('.qp-topic-chip').forEach(c => {
+        c.classList.toggle('selected', c.dataset.topic === qpState.topic);
+    });
+    document.querySelectorAll('.qp-diff-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.diff === qpState.difficulty);
+    });
+    qpUpdateStepper();
+    if (qpEl.timeToggle) {
+        qpEl.timeToggle.classList.toggle('on', qpState.timeLimit);
+        qpEl.timeToggle.setAttribute('aria-checked', String(qpState.timeLimit));
+    }
+    if (qpEl.timePills) qpEl.timePills.classList.toggle('hidden', !qpState.timeLimit);
+    document.querySelectorAll('.qp-time-pill').forEach(p => {
+        p.classList.toggle('selected', parseInt(p.dataset.mins, 10) === qpState.timeMinutes);
+    });
+}
+
+window.openPracticeDrawer = function(arg1, arg2) {
+    let preDiff = null;
+    let preselected = false;
+    if (typeof arg1 === 'object' && arg1 !== null) {
+        qpState.topic = (arg1.branch || arg1.topic || qpState.topic);
+        qpState.unit  = arg1.sourceQuestion ? 'Contextual Practice' : (arg1.unit || 'General Practice');
+        if (arg1.difficulty) preDiff = arg1.difficulty;
+        if (arg1.preselected) preselected = true;
+    } else {
+        qpState.topic = arg1 || qpState.topic || 'Calculus';
+        qpState.unit  = arg2 || 'General Practice';
+    }
+
+    // Snap to canonical topic (case-insensitive) so the chip matches.
+    if (!QP_TOPICS.includes(qpState.topic)) {
+        const match = QP_TOPICS.find(t => t.toLowerCase() === String(qpState.topic).toLowerCase());
+        qpState.topic = match || 'Calculus';
+    }
+
+    qpResetToSetup();
+
+    // BUG 2 FIX: When opened from the Hub with a pre-selected topic,
+    // hide the topic selector row — the user already chose the topic.
+    const topicField = document.getElementById('qp-topic-field');
+    if (topicField) {
+        topicField.style.display = preselected ? 'none' : '';
+    }
+
+    qpEl.overlay.hidden = false;
+    qpEl.drawer.hidden  = false;
+    requestAnimationFrame(() => {
+        qpEl.overlay.classList.add('active');
+        qpEl.drawer.classList.add('open');
+    });
+
+    // Legacy callers that pre-pick difficulty skip the Setup screen.
+    if (preDiff) {
+        qpState.difficulty = preDiff;
+        qpStartGeneration();
+    }
+};
+window.openQuizPanel = window.openPracticeDrawer;
+
+window.closePracticeDrawer = function() {
+    qpCleanupTimer();
+    if (qpState.genAbort) { try { qpState.genAbort.abort(); } catch (_) {} qpState.genAbort = null; }
+    qpEl.overlay.classList.remove('active');
+    qpEl.drawer.classList.remove('open');
+    setTimeout(() => {
+        qpEl.overlay.hidden = true;
+        qpEl.drawer.hidden  = true;
+    }, 400);
+};
+
+function qpTryClose() {
+    if (qpState.screen === 'setup' || qpState.screen === 'results' || qpState.screen === 'generating') {
+        window.closePracticeDrawer();
+    } else if (confirm('Quit this quiz? Your progress will be lost.')) {
+        window.closePracticeDrawer();
+    }
+}
+qpEl.closeBtn?.addEventListener('click', qpTryClose);
+qpEl.overlay?.addEventListener('click', () => {
+    // Backdrop only closes on Setup / Results.
+    if (qpState.screen === 'setup' || qpState.screen === 'results') window.closePracticeDrawer();
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && qpEl.drawer && !qpEl.drawer.hidden) qpTryClose();
+});
+
+// ── Setup screen controls ────────────────────────────────
+qpEl.topicChips?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.qp-topic-chip');
+    if (!chip) return;
+    document.querySelectorAll('.qp-topic-chip').forEach(c => c.classList.toggle('selected', c === chip));
+    qpState.topic = chip.dataset.topic;
+});
+qpEl.diffGrid?.addEventListener('click', (e) => {
+    const card = e.target.closest('.qp-diff-card');
+    if (!card) return;
+    document.querySelectorAll('.qp-diff-card').forEach(c => c.classList.toggle('selected', c === card));
+    qpState.difficulty = card.dataset.diff;
+});
+function qpUpdateStepper() {
+    if (!qpEl.stepValueEl) return;
+    qpEl.stepValueEl.textContent = String(qpState.numQuestions);
+    if (qpEl.stepDownBtn) qpEl.stepDownBtn.disabled = qpState.numQuestions <= 5;
+    if (qpEl.stepUpBtn)   qpEl.stepUpBtn.disabled   = qpState.numQuestions >= 20;
+}
+qpEl.stepUpBtn?.addEventListener('click', () => {
+    if (qpState.numQuestions < 20) { qpState.numQuestions++; qpUpdateStepper(); }
+});
+qpEl.stepDownBtn?.addEventListener('click', () => {
+    if (qpState.numQuestions > 5)  { qpState.numQuestions--; qpUpdateStepper(); }
+});
+function qpSetToggle(on) {
+    qpState.timeLimit = !!on;
+    if (qpEl.timeToggle) {
+        qpEl.timeToggle.classList.toggle('on', !!on);
+        qpEl.timeToggle.setAttribute('aria-checked', String(!!on));
+    }
+    if (qpEl.timePills) qpEl.timePills.classList.toggle('hidden', !on);
+}
+qpEl.timeToggle?.addEventListener('click', () => qpSetToggle(!qpState.timeLimit));
+qpEl.timeToggle?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); qpSetToggle(!qpState.timeLimit); }
+});
+qpEl.timePills?.addEventListener('click', (e) => {
+    const pill = e.target.closest('.qp-time-pill');
+    if (!pill) return;
+    document.querySelectorAll('.qp-time-pill').forEach(p => p.classList.toggle('selected', p === pill));
+    qpState.timeMinutes = parseInt(pill.dataset.mins, 10) || 10;
+});
+qpEl.generateBtn?.addEventListener('click', () => qpStartGeneration());
+
+// ── Generating screen ───────────────────────────────────
+function qpShowGenLoader() {
+    qpEl.genInner.innerHTML = `
+        <div class="qp-big-spinner"></div>
+        <h3 class="qp-gen-title">Generating your quiz…</h3>
+        <p class="qp-gen-sub">Creating <strong>${qpState.numQuestions}</strong> <strong>${qpEsc(qpState.difficulty)}</strong> questions on <strong>${qpEsc(qpState.topic)}</strong></p>
+        <button class="qp-btn-secondary" id="qp-cancel-gen-btn">Cancel</button>
+    `;
+    document.getElementById('qp-cancel-gen-btn')?.addEventListener('click', () => {
+        if (qpState.genAbort) { try { qpState.genAbort.abort(); } catch (_) {} qpState.genAbort = null; }
+        qpGoToScreen('setup');
+    });
+}
+function qpShowGenError(msg) {
+    qpEl.genInner.innerHTML = `
+        <div class="qp-gen-error">
+            <strong>Couldn't generate the quiz</strong>
+            ${qpEsc(msg)}
+        </div>
+        <button class="qp-btn-primary" style="width:auto;padding:0 22px;height:42px" id="qp-retry-gen-btn">Try Again</button>
+        <button class="qp-btn-secondary" id="qp-back-setup-btn">Back to Setup</button>
+    `;
+    document.getElementById('qp-retry-gen-btn')?.addEventListener('click', () => qpStartGeneration());
+    document.getElementById('qp-back-setup-btn')?.addEventListener('click', () => qpGoToScreen('setup'));
+}
+
+async function qpStartGeneration() {
+    qpGoToScreen('generating');
+    qpShowGenLoader();
+    qpState.genAbort = new AbortController();
+
+    try {
+        const API_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
+            ? String(import.meta.env.VITE_API_URL).replace(/\/$/, '')
+            : (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+
+        const body = {
+            topic:               qpState.topic,
+            unit:                qpState.unit,
+            difficulty:          qpState.difficulty,
+            num_questions:       qpState.numQuestions,
+            time_limit_seconds:  qpState.timeLimit ? qpState.timeMinutes * 60 : 0,
+        };
+
+        const res = await fetch(`${API_URL}/study/quiz_panel/generate`, {
+            method:  'POST',
+            signal:  qpState.genAbort.signal,
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(body),
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch (_) {}
+
+        if (!res.ok || !data.questions || !data.questions.length) {
+            throw new Error((data && data.error) || `HTTP ${res.status}`);
+        }
+
+        // Backend may return more than we asked. Truncate to requested.
+        const list = Array.isArray(data.questions) ? data.questions.slice(0, qpState.numQuestions) : [];
+        qpState.questions    = list.map(qpNormalizeQuestion);
+        qpState.answers      = new Array(qpState.questions.length).fill(null);
+        qpState.currentIndex = 0;
+        qpState.score        = 0;
+        qpState.streak       = 0;
+        qpState.answered     = false;
+        qpState.locked       = false;
+
+        qpStartQuiz();
+    } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        console.error('[Quiz] generation error:', err);
+        qpShowGenError(err && err.message ? err.message : 'Failed to generate quiz.');
+    }
+}
+
+// Normalize a backend question to the panel's working shape.
+// Backend returns: { question, options:["A) ...", ...], correct: "A) text" | "A" | 0..3, steps:[...] }
+function qpNormalizeQuestion(q) {
+    const opts        = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
+    const cleanedOpts = opts.map(o => String(o).replace(/^\s*[A-Da-d][\)\.\:]\s*/, '').trim());
+
+    let correctIdx = -1;
+    if (typeof q.correct === 'number') {
+        correctIdx = q.correct;
+    } else if (typeof q.correct === 'string' && q.correct.length > 0) {
+        const letter = q.correct.trim().charAt(0).toUpperCase();
+        const i = letter.charCodeAt(0) - 65;
+        if (i >= 0 && i < cleanedOpts.length) {
+            correctIdx = i;
+        } else {
+            // Fall back: substring match against original options
+            const target = q.correct.trim().toUpperCase();
+            const idx = opts.findIndex(o => String(o).trim().toUpperCase().startsWith(target.slice(0, 4)));
+            if (idx !== -1) correctIdx = idx;
+        }
+    }
+    if (correctIdx < 0 || correctIdx > 3) correctIdx = 0;
+
+    return {
+        question:    String(q.question || ''),
+        options:     cleanedOpts,
+        correctIdx,
+        steps:       Array.isArray(q.steps) ? q.steps : [],
+        explanation: String(q.explanation || ''),
+    };
+}
+
+// ── Active quiz ──────────────────────────────────────────
+function qpStartQuiz() {
+    qpEl.qTotalEl.textContent = qpState.questions.length;
+    qpEl.qIndexEl.textContent = 1;
+    qpGoToScreen('quiz');
+
+    qpState.elapsedSeconds   = 0;
+    qpState.remainingSeconds = qpState.timeLimit ? (qpState.timeMinutes * 60) : 0;
+
+    if (qpState.timeLimit) {
+        qpEl.quizTimer.hidden = false;
+        qpUpdateTimerDisplay();
+        qpState.timerInterval = setInterval(qpTickCountdown, 1000);
+    } else {
+        // Count up for the "Time" stat shown on results.
+        qpEl.quizTimer.hidden = true;
+        qpState.timerInterval = setInterval(() => { qpState.elapsedSeconds++; }, 1000);
+    }
+
+    qpRenderCurrentQuestion();
+}
+function qpTickCountdown() {
+    qpState.remainingSeconds--;
+    qpState.elapsedSeconds++;
+    qpUpdateTimerDisplay();
+    if (qpState.remainingSeconds <= 0) {
+        qpCleanupTimer();
+        qpFinishQuiz(true);
+    }
+}
+function qpUpdateTimerDisplay() {
+    if (!qpEl.timerText) return;
+    qpEl.timerText.textContent = qpFmtTime(qpState.remainingSeconds);
+    qpEl.quizTimer.classList.toggle('warning', qpState.remainingSeconds <= 30);
+}
+function qpCleanupTimer() {
+    if (qpState.timerInterval) {
+        clearInterval(qpState.timerInterval);
+        qpState.timerInterval = null;
+    }
+}
+
+function qpRenderCurrentQuestion() {
+    const idx = qpState.currentIndex;
+    const q   = qpState.questions[idx];
+    if (!q) return;
+
+    qpState.answered = false;
+    qpState.locked   = false;
+
+    qpEl.qIndexEl.textContent = String(idx + 1);
+    qpEl.qNumEl.textContent   = String(idx + 1);
+    qpEl.questionText.innerHTML = qpRenderMath(q.question);
+
+    const last = (idx === qpState.questions.length - 1);
+    qpEl.nextBtnText.textContent = last ? 'Finish Quiz' : 'Next Question';
+
+    qpEl.optionsGrid.innerHTML = '';
+    q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'qp-option-card';
+        btn.type = 'button';
+        btn.dataset.idx = String(i);
+        btn.innerHTML = `
+            <span class="qp-opt-letter">${String.fromCharCode(65 + i)}</span>
+            <span class="qp-opt-text">${qpRenderInline(opt)}</span>
+        `;
+        btn.addEventListener('click', () => qpSelectOption(i, btn));
+        qpEl.optionsGrid.appendChild(btn);
+    });
+
+    qpEl.stepBtn.hidden    = true;
+    qpEl.stepsPanel.hidden = true;
+    qpEl.stepsPanel.innerHTML = '';
+    if (qpEl.stepBtnText) qpEl.stepBtnText.textContent = 'Show Step-by-Step Solution';
+
+    qpEl.nextBtn.disabled = true;
+
+    const pct = (idx / qpState.questions.length) * 100;
+    qpEl.progressBar.style.width = pct + '%';
+}
+function qpSelectOption(i, btn) {
+    if (qpState.locked) return;
+    qpState.answers[qpState.currentIndex] = i;
+    document.querySelectorAll('#qp-options-grid .qp-option-card').forEach(b => {
+        b.classList.toggle('selected', b === btn);
+    });
+    qpEl.nextBtn.disabled = false;
+}
+
+qpEl.nextBtn?.addEventListener('click', () => {
+    if (qpState.locked) { qpAdvanceOrFinish(); return; }
+    if (qpState.answers[qpState.currentIndex] == null) return;
+
+    // Reveal correct/wrong
+    qpState.locked   = true;
+    qpState.answered = true;
+    const q          = qpState.questions[qpState.currentIndex];
+    const correctIdx = q.correctIdx;
+    const chosenIdx  = qpState.answers[qpState.currentIndex];
+    const isCorrect  = chosenIdx === correctIdx;
+
+    if (isCorrect) { qpState.score++; qpState.streak++; }
+    else           { qpState.streak = 0; }
+
+    document.querySelectorAll('#qp-options-grid .qp-option-card').forEach((b, i) => {
+        b.classList.add('locked');
+        if (i === correctIdx) b.classList.add('correct');
+        if (i === chosenIdx && !isCorrect) b.classList.add('wrong');
+    });
+
+    if (q.steps && q.steps.length) {
+        qpEl.stepBtn.hidden = false;
+        qpEl.stepsPanel.innerHTML = q.steps.map((step, si) => `
+            <div class="qp-step-item">
+                <div class="qp-step-title">${qpEsc(step.title || `Step ${si + 1}`)}</div>
+                <div class="qp-step-explanation">${qpRenderMath(step.explanation || '')}</div>
+                ${step.formula ? `<div class="qp-step-formula">${qpRenderMath(step.formula)}</div>` : ''}
+            </div>
+        `).join('');
+    }
+
+    setTimeout(() => qpAdvanceOrFinish(), 750);
+});
+
+function qpAdvanceOrFinish() {
+    if (qpState.currentIndex < qpState.questions.length - 1) {
+        qpState.currentIndex++;
+        qpRenderCurrentQuestion();
+        const pct = (qpState.currentIndex / qpState.questions.length) * 100;
+        qpEl.progressBar.style.width = pct + '%';
+    } else {
+        qpFinishQuiz(false);
+    }
+}
+
+qpEl.stepBtn?.addEventListener('click', () => {
+    const isHidden = qpEl.stepsPanel.hidden;
+    qpEl.stepsPanel.hidden = !isHidden;
+    if (qpEl.stepBtnText) qpEl.stepBtnText.textContent = isHidden ? 'Hide Solution' : 'Show Step-by-Step Solution';
+});
+
+qpEl.quitBtn?.addEventListener('click', () => {
+    if (confirm('Quit this quiz? Your progress will be lost.')) {
+        qpCleanupTimer();
+        qpResetToSetup();
+    }
+});
+
+// ── Results ──────────────────────────────────────────────
+function qpAnimateNumber(el, from, to, dur, fmt) {
+    if (!el) return;
+    const start = performance.now();
+    function tick(now) {
+        const t = Math.min(1, (now - start) / dur);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const val = Math.round(from + (to - from) * eased);
+        el.textContent = fmt(val);
+        if (t < 1) requestAnimationFrame(tick);
+        else el.textContent = fmt(to);
+    }
+    requestAnimationFrame(tick);
+}
+
+function qpFinishQuiz(timedOut) {
+    qpCleanupTimer();
+    qpEl.progressBar.style.width = '100%';
+
+    const total   = qpState.questions.length;
+    const correct = qpState.score;
+    const pct     = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const elapsed = qpState.elapsedSeconds;
+
+    qpEl.resultsTitle.textContent = `Quiz Complete · ${qpState.topic}` + (timedOut ? ' ' : ' ');
+
+    // Ring animation reset
+    const RING_CIRC = 2 * Math.PI * 72;
+    if (qpEl.ringFill) {
+        qpEl.ringFill.style.transition = 'none';
+        qpEl.ringFill.style.strokeDashoffset = String(RING_CIRC);
+        void qpEl.ringFill.getBoundingClientRect();
+        qpEl.ringFill.style.transition = '';
+    }
+    if (qpEl.ringPct)   qpEl.ringPct.textContent   = '0%';
+    if (qpEl.ringScore) qpEl.ringScore.textContent = `${correct} / ${total} correct`;
+
+    if (qpEl.resScore) qpEl.resScore.textContent = `0/${total}`;
+    if (qpEl.resAcc)   qpEl.resAcc.textContent   = '0%';
+    if (qpEl.resTime)  qpEl.resTime.textContent  = '00:00';
+
+    qpGoToScreen('results');
+
+    setTimeout(() => {
+        if (qpEl.ringFill) qpEl.ringFill.style.strokeDashoffset = String(RING_CIRC - (RING_CIRC * pct / 100));
+        qpAnimateNumber(qpEl.ringPct,  0, pct,     1100, v => `${v}%`);
+        qpAnimateNumber(qpEl.resScore, 0, correct, 1200, v => `${v}/${total}`);
+        qpAnimateNumber(qpEl.resAcc,   0, pct,     1200, v => `${v}%`);
+        qpAnimateNumber(qpEl.resTime,  0, elapsed, 1200, v => qpFmtTime(v));
+    }, 60);
+
+    // Performance badge
+    const badge = qpEl.perfBadge;
+    if (badge) {
+        badge.classList.remove('good', 'warn');
+        if      (pct >= 80) { badge.classList.add('good'); badge.textContent = 'Excellent!'; }
+        else if (pct >= 60) {                              badge.textContent = 'Good Job'; }
+        else                { badge.classList.add('warn'); badge.textContent = 'Keep Practicing 💪'; }
+    }
+
+    qpRenderReviewList();
+}
+
+function qpRenderReviewList() {
+    const root = qpEl.reviewList;
+    if (!root) return;
+    root.innerHTML = '';
+    const total = qpState.questions.length;
+    if (qpEl.reviewCount) qpEl.reviewCount.textContent = `${total} question${total === 1 ? '' : 's'}`;
+
+    qpState.questions.forEach((q, idx) => {
+        const chosen      = qpState.answers[idx];
+        const isCorrect   = chosen === q.correctIdx;
+        const yourText    = chosen == null
+            ? '— (no answer)'
+            : `${String.fromCharCode(65 + chosen)}) ${q.options[chosen]}`;
+        const correctText = `${String.fromCharCode(65 + q.correctIdx)}) ${q.options[q.correctIdx]}`;
+
+        // Build explanation: explicit field wins, otherwise concatenate steps.
+        let explHtml = '';
+        if (q.explanation) {
+            explHtml = qpRenderMath(q.explanation);
+        } else if (q.steps && q.steps.length) {
+            explHtml = q.steps.map(s => {
+                const t = s.title    ? `<strong>${qpEsc(s.title)}.</strong> ` : '';
+                const e = s.explanation ? qpRenderMath(s.explanation)         : '';
+                const f = s.formula  ? `<div class="qp-review-expl-formula">${qpRenderMath(s.formula)}</div>` : '';
+                return t + e + f;
+            }).join('<br/>');
+        }
+
+        const item = document.createElement('div');
+        item.className = 'qp-review-item ' + (isCorrect ? 'correct' : 'wrong');
+        item.innerHTML = `
+            <button class="qp-review-row" type="button">
+                <span class="qp-review-icon">${isCorrect ? '✓' : '✕'}</span>
+                <span class="qp-review-q"><strong>Q${idx + 1}</strong>${qpRenderInline(q.question)}</span>
+                <span class="qp-review-arrow">›</span>
+            </button>
+            <div class="qp-review-detail">
+                <div class="qp-review-detail-inner">
+                    <div class="qp-review-detail-q">${qpRenderMath(q.question)}</div>
+                    <div class="qp-review-ans-row ${isCorrect ? 'correct' : 'wrong'}">
+                        <span class="lbl">Your answer</span>
+                        <span class="val">${qpRenderInline(yourText)}</span>
+                    </div>
+                    ${isCorrect ? '' : `
+                    <div class="qp-review-ans-row correct">
+                        <span class="lbl">Correct</span>
+                        <span class="val">${qpRenderInline(correctText)}</span>
+                    </div>`}
+                    ${explHtml ? `<div class="qp-review-expl"><strong>Why:</strong> ${explHtml}</div>` : ''}
+                </div>
+            </div>
+        `;
+        item.querySelector('.qp-review-row').addEventListener('click', () => {
+            item.classList.toggle('expanded');
+        });
+        root.appendChild(item);
+    });
+}
+
+// ── Results action buttons ──────────────────────────────
+qpEl.tryAgainBtn?.addEventListener('click', () => qpStartGeneration());
+qpEl.newQuizBtn?.addEventListener('click', () => qpResetToSetup());
+qpEl.mistakesBtn?.addEventListener('click', () => {
+    const items = document.querySelectorAll('.qp-review-item.wrong');
+    if (items.length === 0) return;
+    items.forEach(it => { if (!it.classList.contains('expanded')) it.classList.add('expanded'); });
+    items[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+// ── Initial setup-UI sync ───────────────────────────────
+qpSyncSetupUI();

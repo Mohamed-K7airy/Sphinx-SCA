@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Mode — MATHX</title>
-    <meta name="description"
-        content="MATHX Study Mode — Focus timer, notes, and productivity tools to supercharge your study sessions.">
+    <meta name="description" content="MATHX Study Mode — Focus timer, session analytics, and AI study tools.">
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#3b82f6">
@@ -38,9 +37,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark-dimmed.min.css">
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
 
+    <!-- Google Fonts: Source Serif 4 for AI responses, JetBrains Mono for Code -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/styles/style.css">
     <link rel="stylesheet" href="/styles/enhancements.css">
     <link rel="stylesheet" href="/styles/study-mode.css">
+    <link rel="stylesheet" href="/styles/quiz.css">
+    <link rel="stylesheet" href="/styles/math-hub.css">
 </head>
 
 <body class="app-page">
@@ -57,6 +62,21 @@
                 <button class="menu-toggle-btn" id="sidebar-toggle-btn">
                     <span class="material-symbols-outlined">menu</span>
                 </button>
+            </div>
+            <!-- [1] MATH TOPIC HUB — sidebar section above New Chat -->
+            <div class="mh-sidebar-hub" id="mh-sidebar-hub">
+                <div class="mh-sidebar-header">
+                    <span class="mh-sidebar-icon material-symbols-outlined">calculate</span>
+                    <span class="mh-sidebar-title">Math Topics</span>
+                </div>
+                <div class="mh-topic-pills">
+                    <button class="mh-pill" data-topic="calculus" id="mh-pill-calculus">∫ Calculus</button>
+                    <button class="mh-pill" data-topic="algebra" id="mh-pill-algebra">x² Algebra</button>
+                    <button class="mh-pill" data-topic="statistics" id="mh-pill-statistics">σ Statistics</button>
+                    <button class="mh-pill" data-topic="geometry" id="mh-pill-geometry">△ Geometry</button>
+                    <button class="mh-pill" data-topic="linearAlgebra" id="mh-pill-linearalgebra">[] Lin.
+                        Algebra</button>
+                </div>
             </div>
             <div class="sidebar-action">
                 <button class="new-chat-sidebar-btn" onclick="window.location.href='/study-mode.html';">
@@ -105,8 +125,7 @@
                     </div>
                     <div class="scm-header-right">
                         <!-- Compact Focus Timer (Req #7: always visible on mobile + desktop) -->
-                        <button class="compact-timer" id="compact-timer" type="button"
-                            title="Toggle Timer Panel">
+                        <button class="compact-timer" id="compact-timer" type="button" title="Toggle Timer Panel">
                             <span class="material-symbols-outlined compact-timer-icon">timer</span>
                             <span class="compact-timer-time" id="compact-timer-time">25:00</span>
                         </button>
@@ -180,6 +199,14 @@
                             <span class="material-symbols-outlined" style="font-size:16px;">school</span>
                             Explain a concept
                         </button>
+                        <button class="quick-action-pill" data-action="quiz-single" aria-haspopup="dialog">
+                            <span class="material-symbols-outlined" style="font-size:16px;">quiz</span>
+                            Create Practice Question
+                        </button>
+                        <button class="quick-action-pill" data-action="quiz-test" aria-haspopup="dialog">
+                            <span class="material-symbols-outlined" style="font-size:16px;">fact_check</span>
+                            Create Practice Test
+                        </button>
                     </div>
 
                     <div class="hero-search-wrapper">
@@ -207,7 +234,9 @@
                                 <div class="graph-mode-badge" id="hero-graph-mode-badge" style="display:none;">
                                     <span class="material-symbols-outlined" style="font-size:16px;">show_chart</span>
                                     <span>Graph Mode</span>
-                                    <button class="graph-mode-close" onclick="window.toggleGraphMode && window.toggleGraphMode()" title="Exit Graph Mode">
+                                    <button class="graph-mode-close"
+                                        onclick="window.toggleGraphMode && window.toggleGraphMode()"
+                                        title="Exit Graph Mode">
                                         <span class="material-symbols-outlined" style="font-size:14px;">close</span>
                                     </button>
                                 </div>
@@ -296,7 +325,9 @@
                                 <div class="graph-mode-badge" id="chat-graph-mode-badge" style="display:none;">
                                     <span class="material-symbols-outlined" style="font-size:16px;">show_chart</span>
                                     <span>Graph Mode</span>
-                                    <button class="graph-mode-close" onclick="window.toggleGraphMode && window.toggleGraphMode()" title="Exit Graph Mode">
+                                    <button class="graph-mode-close"
+                                        onclick="window.toggleGraphMode && window.toggleGraphMode()"
+                                        title="Exit Graph Mode">
                                         <span class="material-symbols-outlined" style="font-size:14px;">close</span>
                                     </button>
                                 </div>
@@ -376,82 +407,222 @@
 
             </main>
 
-            <!-- RIGHT SIDEBAR — Study Tools -->
-            <aside class="study-right-sidebar" id="study-right-sidebar">
-                <div class="srs-section srs-timer" id="timer-card">
-                    <div class="srs-section-header" style="justify-content: flex-start; gap: 12px;">
-                        <button class="srs-close-btn" id="close-right-panel" title="Hide Sidebar">
-                            <span class="material-symbols-outlined">chevron_right</span>
-                        </button>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span class="material-symbols-outlined srs-icon">timer</span>
-                            <h3>Focus Timer</h3>
-                        </div>
+            <!-- [2] MATH HUB OVERLAYS — Topic Page + Unit Drawer -->
+            <!-- Topic Page: replaces main content area -->
+            <div class="mh-topic-page" id="mh-topic-page" hidden>
+                <div class="mh-tp-top-nav">
+                    <button class="mh-back-btn" id="mh-back-btn" title="Back">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                    </button>
+                </div>
+
+                <div class="mh-tp-hero">
+                    <div class="mh-tp-hero-icon-wrap">
+                        <span class="mh-tp-icon" id="mh-tp-icon">∫</span>
                     </div>
-                    <div class="timer-plans">
-                        <button class="timer-plan-btn active" data-work="25" data-break="5">
-                            <span class="plan-label">Pomodoro</span>
-                        </button>
-                        <button class="timer-plan-btn" data-work="45" data-break="15">
-                            <span class="plan-label">Deep Focus</span>
-                        </button>
-                        <button class="timer-plan-btn" data-work="0" data-break="0">
-                            <span class="plan-label">Free</span>
-                        </button>
-                    </div>
-                    <div class="srs-timer-body">
-                        <div class="timer-ring">
-                            <svg viewBox="0 0 220 220">
-                                <circle class="timer-ring-bg" cx="110" cy="110" r="100" />
-                                <circle class="timer-ring-progress" id="timer-ring-progress" cx="110" cy="110"
-                                    r="100" />
-                            </svg>
-                            <div class="timer-center">
-                                <span class="timer-time" id="timer-time">25:00</span>
-                                <span class="timer-label" id="timer-label">Focus</span>
+                    <h1 class="mh-tp-title">MATHX <span id="mh-tp-title">Calculus</span> Hub</h1>
+                    <p class="mh-tp-subtitle">Find notes, practice exams, and flashcards to help you get 5's!</p>
+                </div>
+
+                <div class="mh-tp-body">
+                    <!-- General Resources -->
+                    <div class="mh-tp-section">
+                        <h3 class="mh-section-heading">Study Resources</h3>
+                        <div class="mh-tp-grid">
+                            <div class="mh-action-card" id="mh-action-practice">
+                                <span class="mh-ac-icon material-symbols-outlined">edit_note</span>
+                                <div class="mh-ac-body">
+                                    <span class="mh-ac-title">Practice Problems</span>
+                                    <span class="mh-ac-desc">Start a guided practice session</span>
+                                </div>
+                            </div>
+                            <div class="mh-action-card" id="mh-action-sheet">
+                                <span class="mh-ac-icon material-symbols-outlined">menu_book</span>
+                                <div class="mh-ac-body">
+                                    <span class="mh-ac-title">Study Sheet</span>
+                                    <span class="mh-ac-desc">Key formulas at a glance</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="timer-controls">
-                            <button class="timer-ctrl-btn" id="timer-reset-btn"><span
-                                    class="material-symbols-outlined">restart_alt</span></button>
-                            <button class="timer-ctrl-btn timer-play-btn" id="timer-play-btn"><span
-                                    class="material-symbols-outlined" id="play-icon">play_arrow</span></button>
-                            <button class="timer-ctrl-btn" id="timer-skip-btn"><span
-                                    class="material-symbols-outlined">skip_next</span></button>
+                    </div>
+
+                    <!-- Study Sheet inline panel -->
+                    <div class="mh-study-sheet-panel" id="mh-study-sheet-panel" hidden>
+                        <div class="mh-ss-header">
+                            <span class="mh-ss-title">Key Formulas</span>
+                            <button class="mh-ss-close" id="mh-ss-close">✕</button>
+                        </div>
+                        <div class="mh-ss-body" id="mh-ss-body"></div>
+                    </div>
+
+                    <!-- Units -->
+                    <div class="mh-tp-section">
+                        <h3 class="mh-section-heading">Units</h3>
+                        <div class="mh-tp-grid" id="mh-units-list">
+                            <!-- JS will populate cards here -->
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="srs-section srs-notes" id="notes-card">
-                    <div class="srs-section-header">
-                        <span class="material-symbols-outlined srs-icon">edit_note</span>
-                        <h3>Quick Notes</h3>
-                        <button class="srs-action-btn" id="clear-notes-btn"><span
-                                class="material-symbols-outlined">delete_sweep</span></button>
+            <!-- Unit Drawer: slides in from the right, inside main content -->
+            <div class="mh-unit-drawer" id="mh-unit-drawer" hidden>
+                <div class="mh-ud-header">
+                    <button class="mh-ud-back" id="mh-ud-close">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        Back to subject
+                    </button>
+                    <div class="mh-ud-title-wrap">
+                        <span class="mh-ud-unit-label" id="mh-ud-unit-label">Unit 1: Limits and Continuity</span>
+                        <span class="mh-ud-topic-label" id="mh-ud-topic-label">Calculus</span>
                     </div>
-                    <div class="notes-input-row">
-                        <input type="text" class="note-input" id="note-input" placeholder="Add a note...">
-                        <button class="note-add-btn" id="note-add-btn"><span
-                                class="material-symbols-outlined">add</span></button>
-                    </div>
-                    <ul class="notes-list" id="notes-list"></ul>
                 </div>
+                <div class="mh-ud-cards">
+                    <div class="mh-ud-card" id="mh-udc-summary">
+                        <span class="mh-udc-icon material-symbols-outlined">description</span>
+                        <span class="mh-udc-label">Unit Summary</span>
+                        <span class="mh-udc-desc">Written overview of all key topics covered in this unit</span>
+                    </div>
+                    <div class="mh-ud-card" id="mh-udc-exam">
+                        <span class="mh-udc-icon material-symbols-outlined">assignment_turned_in</span>
+                        <span class="mh-udc-label">Practice Exam</span>
+                        <span class="mh-udc-desc">Test your understanding with timed, AP exam style questions</span>
+                    </div>
+                    <div class="mh-ud-card" id="mh-udc-flash">
+                        <span class="mh-udc-icon material-symbols-outlined">style</span>
+                        <span class="mh-udc-label">Flashcards</span>
+                        <span class="mh-udc-desc">Review concepts and terms that are essential to the unit</span>
+                    </div>
+                    <div class="mh-ud-card mh-udc-disabled" id="mh-udc-video">
+                        <span class="mh-udc-icon material-symbols-outlined">play_circle</span>
+                        <span class="mh-udc-label">Video Lessons</span>
+                        <span class="mh-udc-desc">Watch engaging walkthroughs of unit material with visuals</span>
+                    </div>
+                </div>
+            </div>
 
-                <div class="srs-section srs-tasks" id="tasks-card">
-                    <div class="srs-section-header">
-                        <span class="material-symbols-outlined srs-icon">checklist</span>
-                        <h3>Tasks</h3>
-                        <button class="srs-action-btn" id="clear-tasks-btn"><span
-                                class="material-symbols-outlined">playlist_remove</span></button>
+            <!-- RIGHT SIDEBAR — Study Tools -->
+            <aside class="study-right-sidebar collapsed" id="study-right-sidebar" aria-hidden="true">
+                <!-- Default sidebar content (timer / analytics / notes / tasks) lives
+                     inside this wrapper so the Quiz Session Panel can swap it out
+                     without unmounting the live timer / preserved state. -->
+                <div class="srs-default-content" id="srs-default-content">
+                    <!-- Focus Timer (collapsible) -->
+                    <div class="srs-section srs-timer collapsed" id="timer-card">
+                        <div class="srs-section-header srs-timer-header">
+                            <button class="srs-close-btn" id="close-right-panel" type="button" title="Hide Sidebar"
+                                aria-label="Hide study tools">
+                                <svg class="srs-control-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M9 18l6-6-6-6"></path>
+                                </svg>
+                            </button>
+                            <div class="srs-timer-title">
+                                <svg class="srs-icon srs-clock-icon" viewBox="0 0 24 24" aria-hidden="true"
+                                    focusable="false">
+                                    <circle cx="12" cy="13" r="8"></circle>
+                                    <path d="M12 9v4l2.5 1.5"></path>
+                                    <path d="M9 2h6"></path>
+                                </svg>
+                                <h3>Focus Timer</h3>
+                            </div>
+                            <button class="timer-toggle" id="timer-toggle" type="button" aria-expanded="false"
+                                aria-controls="timer-expanded" title="Expand timer" aria-label="Expand timer">
+                                <svg class="srs-control-icon timer-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"
+                                    focusable="false">
+                                    <path d="M6 9l6 6 6-6"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Compact pill (visible when collapsed) -->
+                        <div class="srs-timer-pill" id="timer-pill">
+                            <span class="timer-pill-time" id="timer-pill-time">25:00</span>
+                            <button class="timer-pill-play" id="timer-pill-play" type="button"
+                                title="Start / pause timer" aria-label="Start or pause timer">
+                                <svg class="timer-pill-play-icon" id="timer-pill-play-icon" viewBox="0 0 24 24"
+                                    aria-hidden="true" focusable="false">
+                                    <path d="M8 5v14l11-7z"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Expanded view -->
+                        <div class="timer-expanded" id="timer-expanded">
+                            <div class="timer-plans">
+                                <button class="timer-plan-btn active" data-work="25" data-break="5">
+                                    <span class="plan-label">Pomodoro</span>
+                                </button>
+                                <button class="timer-plan-btn" data-work="45" data-break="15">
+                                    <span class="plan-label">Deep Focus</span>
+                                </button>
+                                <button class="timer-plan-btn" data-work="0" data-break="0">
+                                    <span class="plan-label">Free</span>
+                                </button>
+                            </div>
+                            <div class="srs-timer-body">
+                                <div class="timer-label-container">
+                                    <span class="timer-label" id="timer-label">Focus</span>
+                                </div>
+                                <div class="flip-clock-wrapper">
+                                    <div class="flip-unit" aria-label="Minutes">
+                                        <div class="flip-card" data-value="2" data-flip-unit="min-tens">
+                                            <div class="flip-card-top" id="flip-min-tens-top"><span
+                                                    class="flip-card-value">2</span></div>
+                                            <div class="flip-card-bottom" id="flip-min-tens-bottom"><span
+                                                    class="flip-card-value">2</span></div>
+                                            <div class="flip-divider"></div>
+                                        </div>
+                                        <div class="flip-card" data-value="5" data-flip-unit="min-ones">
+                                            <div class="flip-card-top" id="flip-min-ones-top"><span
+                                                    class="flip-card-value">5</span></div>
+                                            <div class="flip-card-bottom" id="flip-min-ones-bottom"><span
+                                                    class="flip-card-value">5</span></div>
+                                            <div class="flip-divider"></div>
+                                        </div>
+                                    </div>
+                                    <span class="flip-colon" aria-hidden="true">:</span>
+                                    <div class="flip-unit" aria-label="Seconds">
+                                        <div class="flip-card" data-value="0" data-flip-unit="sec-tens">
+                                            <div class="flip-card-top" id="flip-sec-tens-top"><span
+                                                    class="flip-card-value">0</span></div>
+                                            <div class="flip-card-bottom" id="flip-sec-tens-bottom"><span
+                                                    class="flip-card-value">0</span></div>
+                                            <div class="flip-divider"></div>
+                                        </div>
+                                        <div class="flip-card" data-value="0" data-flip-unit="sec-ones">
+                                            <div class="flip-card-top" id="flip-sec-ones-top"><span
+                                                    class="flip-card-value">0</span></div>
+                                            <div class="flip-card-bottom" id="flip-sec-ones-bottom"><span
+                                                    class="flip-card-value">0</span></div>
+                                            <div class="flip-divider"></div>
+                                        </div>
+                                    </div>
+                                    <span class="timer-time" id="timer-time" style="display: none;">25:00</span>
+                                </div>
+                                <div class="timer-controls">
+                                    <button class="timer-ctrl-btn" id="timer-reset-btn"><span
+                                            class="material-symbols-outlined">restart_alt</span></button>
+                                    <button class="timer-ctrl-btn timer-play-btn" id="timer-play-btn"><svg
+                                            class="timer-control-icon" id="play-icon" viewBox="0 0 24 24"
+                                            aria-hidden="true" focusable="false">
+                                            <path d="M8 5v14l11-7z"></path>
+                                        </svg></button>
+                                    <button class="timer-ctrl-btn" id="timer-skip-btn"><span
+                                            class="material-symbols-outlined">skip_next</span></button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="tasks-input-row">
-                        <input type="text" class="task-input" id="task-input" placeholder="Add a task...">
-                        <button class="task-add-btn" id="task-add-btn"><span
-                                class="material-symbols-outlined">add</span></button>
-                    </div>
-                    <ul class="tasks-list" id="tasks-list"></ul>
-                </div>
+
+                    <!-- Session Analytics — rendered by mountSessionAnalytics() at bootstrap -->
+                    <div class="srs-section srs-analytics" id="session-analytics-card"></div>
+
+                </div><!-- /.srs-default-content -->
             </aside>
+
+            <!-- Quiz Session Panel — overlays the main Study Mode content while a
+                 quiz is in progress. Mounted lazily by openQuizPanel(). -->
+            <div class="srs-quiz-panel" id="srs-quiz-panel" hidden></div>
 
             <!-- Floating Open Button (outside of sidebar to stay visible) -->
             <button class="srs-open-tab" id="open-right-panel" title="Show Study Tools">
@@ -494,12 +665,12 @@
                     <span>Focus Timer</span>
                 </div>
                 <div class="welcome-feature">
-                    <span class="material-symbols-outlined">edit_note</span>
-                    <span>Quick Notes</span>
+                    <span class="material-symbols-outlined">hub</span>
+                    <span>Exam Hub</span>
                 </div>
                 <div class="welcome-feature">
-                    <span class="material-symbols-outlined">checklist</span>
-                    <span>Task Tracking</span>
+                    <span class="material-symbols-outlined">school</span>
+                    <span>Study Agent</span>
                 </div>
             </div>
 
@@ -511,6 +682,7 @@
     </div>
 
     <script src="/study-mode.js" type="module"></script>
+    <script src="/lib/math-hub.js" type="module"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -520,6 +692,268 @@
             });
         }
     </script>
+
+    <!-- Quiz Panel Drawer (4-screen flow: Setup → Generating → Quiz → Results) -->
+    <div class="qp-overlay" id="qp-overlay" hidden></div>
+    <aside class="qp-drawer" id="qp-drawer" hidden aria-label="Create practice test">
+
+        <!-- Header -->
+        <header class="qp-header">
+            <h2 class="qp-title" id="qp-title">Create Practice Test</h2>
+            <button class="qp-close-btn" id="qp-close-btn" title="Close" aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </header>
+
+        <!-- 4-step indicator -->
+        <div class="qp-steps">
+            <div class="qp-step active" data-step="1">
+                <div class="qp-step-dot">1</div>
+                <div class="qp-step-label">Setup</div>
+            </div>
+            <div class="qp-step" data-step="2">
+                <div class="qp-step-dot">2</div>
+                <div class="qp-step-label">Questions</div>
+            </div>
+            <div class="qp-step" data-step="3">
+                <div class="qp-step-dot">3</div>
+                <div class="qp-step-label">Quiz</div>
+            </div>
+            <div class="qp-step" data-step="4">
+                <div class="qp-step-dot">4</div>
+                <div class="qp-step-label">Results</div>
+            </div>
+        </div>
+
+        <!-- Screen container -->
+        <div class="qp-body" id="qp-body">
+
+            <!-- ───── SCREEN 1: SETUP ───── -->
+            <section class="qp-screen active" id="qp-screen-setup">
+                <div class="qp-setup">
+
+                    <!-- Topic -->
+                    <div class="qp-field" id="qp-topic-field">
+                        <div class="qp-field-label">
+                            <span class="qp-field-title">Topic</span>
+                            <span class="qp-field-hint">Pick one</span>
+                        </div>
+                        <div class="qp-topic-chips" id="qp-topic-chips">
+                            <button class="qp-topic-chip" data-topic="Calculus"><span
+                                    class="qp-chip-ico">∫</span>Calculus</button>
+                            <button class="qp-topic-chip" data-topic="Algebra"><span
+                                    class="qp-chip-ico">x²</span>Algebra</button>
+                            <button class="qp-topic-chip" data-topic="Geometry"><span
+                                    class="qp-chip-ico">△</span>Geometry</button>
+                            <button class="qp-topic-chip" data-topic="Statistics"><span
+                                    class="qp-chip-ico">σ</span>Statistics</button>
+                            <button class="qp-topic-chip" data-topic="Linear Algebra"><span
+                                    class="qp-chip-ico">A</span>Linear Algebra</button>
+                        </div>
+                    </div>
+
+                    <!-- Difficulty -->
+                    <div class="qp-field">
+                        <div class="qp-field-label">
+                            <span class="qp-field-title">Difficulty</span>
+                            <span class="qp-field-hint">Required</span>
+                        </div>
+                        <div class="qp-diff-grid" id="qp-diff-grid">
+                            <button class="qp-diff-card" data-diff="easy">
+                                <div class="qp-diff-ico material-symbols-outlined">eco</div>
+                                <div class="qp-diff-name">Easy</div>
+                                <div class="qp-diff-desc">Basic concepts</div>
+                            </button>
+                            <button class="qp-diff-card selected" data-diff="medium">
+                                <div class="qp-diff-ico material-symbols-outlined">bolt</div>
+                                <div class="qp-diff-name">Medium</div>
+                                <div class="qp-diff-desc">Mixed problem types</div>
+                            </button>
+                            <button class="qp-diff-card" data-diff="hard">
+                                <div class="qp-diff-ico material-symbols-outlined">local_fire_department</div>
+                                <div class="qp-diff-name">Hard</div>
+                                <div class="qp-diff-desc">Exam-level challenge</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Question count -->
+                    <div class="qp-field">
+                        <div class="qp-field-label">
+                            <span class="qp-field-title">Number of Questions</span>
+                            <span class="qp-field-hint">5 – 20</span>
+                        </div>
+                        <div class="qp-stepper">
+                            <button class="qp-stepper-btn" id="qp-step-down" aria-label="Decrease">−</button>
+                            <span class="qp-stepper-value" id="qp-step-value">5</span>
+                            <button class="qp-stepper-btn" id="qp-step-up" aria-label="Increase">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Time limit -->
+                    <div class="qp-field">
+                        <div class="qp-field-label">
+                            <span class="qp-field-title">Time Limit</span>
+                            <div class="qp-toggle" id="qp-time-toggle" role="switch" aria-checked="false" tabindex="0">
+                            </div>
+                        </div>
+                        <div class="qp-time-pills hidden" id="qp-time-pills">
+                            <button class="qp-time-pill" data-mins="5">5 min</button>
+                            <button class="qp-time-pill selected" data-mins="10">10 min</button>
+                            <button class="qp-time-pill" data-mins="15">15 min</button>
+                            <button class="qp-time-pill" data-mins="20">20 min</button>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="qp-footer-cta">
+                    <button class="qp-btn-primary" id="qp-generate-btn">
+                        Generate Quiz <span aria-hidden="true">→</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- ───── SCREEN 2: GENERATING ───── -->
+            <section class="qp-screen" id="qp-screen-generating">
+                <div class="qp-generating" id="qp-gen-inner">
+                    <div class="qp-big-spinner"></div>
+                    <h3 class="qp-gen-title">Generating your quiz…</h3>
+                    <p class="qp-gen-sub">Creating <strong id="qp-gen-n">5</strong> <strong
+                            id="qp-gen-diff">medium</strong> questions on <strong id="qp-gen-topic">Calculus</strong>
+                    </p>
+                    <button class="qp-btn-secondary" id="qp-cancel-gen-btn">Cancel</button>
+                </div>
+            </section>
+
+            <!-- ───── SCREEN 3: ACTIVE QUIZ ───── -->
+            <section class="qp-screen" id="qp-screen-quiz">
+                <div class="qp-quiz">
+                    <div class="qp-quiz-topbar">
+                        <div class="qp-quiz-counter">Question <strong id="qp-q-index">1</strong> of <strong
+                                id="qp-q-total">5</strong></div>
+                        <div class="qp-quiz-timer" id="qp-quiz-timer" hidden>
+                            <span class="qp-timer-ico material-symbols-outlined">timer</span>
+                            <span id="qp-timer">--:--</span>
+                        </div>
+                        <button class="qp-quit-btn" id="qp-quit-btn">Quit</button>
+                    </div>
+                    <div class="qp-quiz-progress">
+                        <div class="qp-progress-bar" id="qp-progress-bar"></div>
+                    </div>
+                    <div class="qp-quiz-content">
+                        <div class="qp-q-card">
+                            <div class="qp-q-num" id="qp-q-num">1</div>
+                            <div class="qp-question-text" id="qp-question-text">Question loading…</div>
+                        </div>
+                        <div class="qp-options-grid" id="qp-options-grid"><!-- options --></div>
+
+                        <!-- Step-by-step (post-answer) -->
+                        <button class="qp-step-btn" id="qp-step-btn" hidden>
+                            <span class="material-symbols-outlined">menu_book</span>
+                            <span id="qp-step-btn-text">Show Step-by-Step Solution</span>
+                        </button>
+                        <div class="qp-steps-panel" id="qp-steps-panel" hidden><!-- steps --></div>
+
+                        <div class="qp-quiz-actions">
+                            <button class="qp-btn-next" id="qp-next-btn" disabled>
+                                <span id="qp-next-btn-text">Next Question</span> <span aria-hidden="true">→</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ───── SCREEN 4: RESULTS ───── -->
+            <section class="qp-screen" id="qp-screen-results">
+                <div class="qp-results">
+                    <h2 class="qp-results-title" id="qp-results-title">Quiz Complete 🎉</h2>
+                    <div class="qp-results-ring">
+                        <svg width="168" height="168" viewBox="0 0 168 168">
+                            <defs>
+                                <linearGradient id="qp-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#ff5a1f" />
+                                    <stop offset="100%" stop-color="#e8490f" />
+                                </linearGradient>
+                            </defs>
+                            <circle class="qp-ring-bg" cx="84" cy="84" r="72" />
+                            <circle class="qp-ring-fill" id="qp-ring-fill" cx="84" cy="84" r="72"
+                                stroke-dasharray="452.39" stroke-dashoffset="452.39" />
+                        </svg>
+                        <div class="qp-ring-label">
+                            <span class="qp-ring-pct" id="qp-ring-pct">0%</span>
+                            <span class="qp-ring-score" id="qp-ring-score">0 / 0 correct</span>
+                        </div>
+                    </div>
+                    <div class="qp-perf-badge" id="qp-perf-badge">—</div>
+
+                    <!-- Compact stat row (kept from prior design for at-a-glance summary) -->
+                    <div class="qp-results-stats">
+                        <div class="qp-stat-box">
+                            <span class="qp-stat-value" id="qp-res-score">0/0</span>
+                            <span class="qp-stat-label">Score</span>
+                        </div>
+                        <div class="qp-stat-box">
+                            <span class="qp-stat-value" id="qp-res-acc">0%</span>
+                            <span class="qp-stat-label">Accuracy</span>
+                        </div>
+                        <div class="qp-stat-box">
+                            <span class="qp-stat-value" id="qp-res-time">00:00</span>
+                            <span class="qp-stat-label">Time</span>
+                        </div>
+                    </div>
+
+                    <!-- Review list -->
+                    <div class="qp-review">
+                        <h3 class="qp-review-title">Review · <span id="qp-review-count">0 questions</span></h3>
+                        <div class="qp-review-list" id="qp-review-list"><!-- injected --></div>
+                    </div>
+
+                    <div class="qp-results-actions">
+                        <button class="qp-res-btn qp-res-primary" id="qp-btn-try-again">↻ Retake</button>
+                        <button class="qp-res-btn qp-res-secondary" id="qp-btn-new-quiz">＋ New Quiz</button>
+                        <button class="qp-res-btn qp-res-secondary" id="qp-btn-mistakes">⚠ Mistakes</button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </aside>
+    <!-- STUDY GUIDE PANEL -->
+    <div class="sg-overlay" id="sg-overlay"></div>
+    <div class="sg-panel" id="sg-panel">
+        <!-- Reading-progress bar (scroll-based, populated by math-hub.js) -->
+        <div class="sg-progress-bar" id="sg-progress-bar"></div>
+        <div class="sg-header">
+            <div class="sg-header-top">
+                <button class="sg-back-btn" id="sg-back-btn">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    Back to Topic Hub
+                </button>
+                <button class="sg-print-btn" id="sg-print-btn" title="Print Panel">
+                    <span class="material-symbols-outlined">print</span>
+                </button>
+            </div>
+            <h2 class="sg-title" id="sg-title">Unit X Study Guide</h2>
+            <div class="sg-tabs">
+                <button class="sg-tab active" data-sg-tab="guide">Study Guide</button>
+                <button class="sg-tab" data-sg-tab="cheat">Quick Reference Cheatsheet</button>
+            </div>
+        </div>
+
+        <div class="sg-body" id="sg-body">
+            <!-- Content will be injected here -->
+        </div>
+
+        <div class="sg-footer">
+            <button class="sg-footer-btn sg-btn-ask" id="sg-btn-ask">
+                <span class="material-symbols-outlined">chat</span> Ask about this unit
+            </button>
+            <button class="sg-footer-btn sg-btn-practice" id="sg-btn-practice">
+                <span class="material-symbols-outlined">science</span> Practice this unit
+            </button>
+        </div>
+    </div>
+
 </body>
 
 </html>

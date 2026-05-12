@@ -407,6 +407,20 @@
     color: #ef4444;
 }
 
+.study-action-btn.quiz-mode-btn {
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid var(--primary-light);
+    font-weight: 700;
+}
+
+.study-action-btn.quiz-mode-btn:hover {
+    background: var(--primary);
+    color: var(--text-inverse);
+    border-color: var(--primary);
+    box-shadow: 0 2px 12px var(--primary-glow);
+}
+
 .streak-badge {
     padding: 7px 12px;
     font-size: 13px;
@@ -822,6 +836,9 @@
     width: 0;
     transform: translateX(320px);
     border-left: none;
+    visibility: hidden;
+    pointer-events: none;
+    overflow: hidden;
 }
 
 /* Floating Open Tab Style */
@@ -947,213 +964,325 @@
     font-size: 18px;
 }
 
-/* Notes Card Refinement */
-.notes-input-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-.note-input {
-    flex: 1;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: var(--text-primary);
-    font-size: 13px;
-    outline: none;
-}
-
-.note-add-btn {
-    width: 32px;
-    height: 32px;
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
-}
-
-.notes-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.note-item {
-    display: flex;
-    align-items: center;
+.srs-timer-header {
+    justify-content: flex-start;
     gap: 12px;
-    padding: 10px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    transition: all 0.2s;
-    position: relative;
-    animation: fadeIn 0.3s ease;
+    margin-bottom: 14px;
 }
 
-.note-item:hover {
-    border-color: var(--primary-glow);
-}
-
-.note-icon {
+.srs-timer-title {
     display: flex;
     align-items: center;
-    color: var(--text-muted);
-}
-
-.note-text {
-    flex: 1;
-    font-size: 13.5px;
-    color: var(--text-primary);
-    line-height: 1.4;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.note-delete-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    opacity: 0;
-}
-
-.note-item:hover .note-delete-btn {
-    opacity: 1;
-}
-
-.note-delete-btn:hover {
-    color: var(--primary);
-    background: var(--primary-light);
-}
-
-.note-delete-btn span {
-    font-size: 18px;
-}
-
-/* Tasks Input Refinement */
-.tasks-input-row {
-    display: flex;
     gap: 8px;
-    margin-bottom: 16px;
-}
-
-.task-input {
+    min-width: 0;
     flex: 1;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: var(--text-primary);
-    font-size: 13px;
-    outline: none;
 }
 
-.task-add-btn {
-    width: 32px;
-    height: 32px;
-    background: var(--primary);
-    color: #fff;
+.srs-timer-title h3 {
+    white-space: nowrap;
+}
+
+.srs-timer .srs-close-btn,
+.srs-timer .timer-toggle,
+.srs-timer .timer-pill-play {
+    appearance: none;
+    -webkit-appearance: none;
     border: none;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s;
-}
-
-.task-add-btn:hover {
-    transform: scale(1.05);
-}
-
-.tasks-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.task-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    transition: all 0.2s;
-}
-
-.task-item:hover {
-    border-color: var(--primary-glow);
-}
-
-.task-checkbox {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    color: var(--text-muted);
-    transition: color 0.2s;
     background: transparent;
-    border: none;
+    margin: 0;
     padding: 0;
-}
-
-.task-item.completed .task-checkbox {
-    color: var(--primary);
-}
-
-.task-text {
-    flex: 1;
-    font-size: 13.5px;
-    color: var(--text-primary);
-    transition: all 0.2s;
-}
-
-.task-item.completed .task-text {
-    text-decoration: line-through;
+    font: inherit;
+    line-height: 1;
     color: var(--text-muted);
-    opacity: 0.7;
-}
-
-.task-delete-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
-    opacity: 0;
 }
 
-.task-item:hover .task-delete-btn {
-    opacity: 1;
+.srs-timer .srs-close-btn,
+.srs-timer .timer-toggle {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border-radius: 10px;
+    transition: background 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.task-delete-btn:hover {
+.srs-timer .timer-toggle {
+    margin-left: auto;
+}
+
+.srs-timer .srs-close-btn:hover,
+.srs-timer .timer-toggle:hover {
+    background: var(--bg-tertiary);
     color: var(--primary);
-    background: var(--primary-light);
+    transform: translateY(-1px);
 }
 
-.task-delete-btn span {
+.srs-control-icon,
+.srs-clock-icon {
+    width: 17px;
+    height: 17px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.srs-clock-icon {
+    flex: 0 0 17px;
+    color: var(--primary);
+}
+
+.timer-toggle-icon {
+    transition: transform 180ms ease;
+}
+
+.srs-timer:not(.collapsed) .timer-toggle-icon {
+    transform: rotate(180deg);
+}
+
+.srs-timer-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.timer-pill-time {
+    color: var(--text-primary);
     font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+}
+
+.srs-timer .timer-pill-play {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 8px 18px var(--primary-glow);
+    transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.srs-timer .timer-pill-play:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px var(--primary-glow-strong);
+}
+
+.timer-pill-play-icon,
+.timer-control-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+    fill: currentColor;
+}
+
+.timer-control-icon {
+    width: 20px;
+    height: 20px;
+}
+
+#session-analytics-card.srs-analytics {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+#session-analytics-card .srs-section-header {
+    margin-bottom: 0;
+}
+
+#session-analytics-card .srs-analytics-mode,
+#session-analytics-card .srs-analytics-grid,
+#session-analytics-card .srs-analytics-topics {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+#session-analytics-card .srs-analytics-mode {
+    background: linear-gradient(135deg, var(--primary-light), var(--bg-primary));
+}
+
+#session-analytics-card .srs-analytics-grid {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#session-analytics-card .srs-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+}
+
+#session-analytics-card .srs-analytics-grid .srs-stat + .srs-stat {
+    border-top: 1px solid var(--border-color);
+}
+
+#session-analytics-card .srs-stat-label {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+#session-analytics-card .srs-stat-label::after {
+    content: ":";
+}
+
+#session-analytics-card .srs-stat-value {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 800;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+#session-analytics-card .srs-stat-featured .srs-stat-value {
+    color: var(--primary);
+}
+
+#session-analytics-card .srs-analytics-topics {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+}
+
+#session-analytics-card .srs-topic-title {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+#session-analytics-card .srs-topic-divider {
+    height: 1px;
+    margin: 4px 0 2px;
+    background: var(--border-color);
+}
+
+#session-analytics-card .srs-topic-hint {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+#session-analytics-card .srs-topic-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 24px;
+}
+
+#session-analytics-card .srs-topic-chip,
+#session-analytics-card .srs-topic-empty {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+#session-analytics-card .srs-topic-chip.strong {
+    border: 1px solid var(--success-border);
+    background: var(--success-bg);
+    color: var(--success);
+}
+
+#session-analytics-card .srs-topic-chip.weak {
+    border: 1px solid var(--warning-border);
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+#session-analytics-card .srs-topic-empty {
+    border: 1px dashed var(--border-color);
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+}
+
+/* End Session button at the bottom of Session Analytics — full-width pill so
+   it visually anchors the card and reuses the brand's primary action style
+   (matches the inline "End Session" pill above the chat input). */
+#session-analytics-card .srs-end-session-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    margin-top: 4px;
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+    background: linear-gradient(180deg, var(--primary), var(--primary-hover, var(--primary)));
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    box-shadow: 0 4px 14px var(--primary-glow);
+}
+
+/* Force-hide when the renderer says no session is active. Without this the
+   element's `display: flex` overrides the `[hidden]` attribute's UA default. */
+#session-analytics-card .srs-end-session-btn[hidden] {
+    display: none !important;
+}
+
+#session-analytics-card .srs-end-session-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+    box-shadow: 0 6px 18px var(--primary-glow);
+}
+
+#session-analytics-card .srs-end-session-btn:active {
+    transform: translateY(0);
+    filter: brightness(0.96);
+}
+
+#session-analytics-card .srs-end-session-btn .material-symbols-outlined {
+    font-size: 18px;
+    line-height: 1;
+}
+
+#session-analytics-card .srs-end-session-btn.is-busy {
+    opacity: 0.65;
+    cursor: progress;
+    transform: none;
+    box-shadow: none;
+}
+
+.srs-timer.collapsed .timer-expanded {
+    display: none;
+}
+
+.srs-timer:not(.collapsed) .srs-timer-pill {
+    display: none;
 }
 
 .timer-plans {
@@ -1199,48 +1328,196 @@
     align-items: center;
 }
 
-.timer-ring {
-    width: 160px;
-    height: 160px;
+.flip-clock-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 26px;
+    padding: 14px 10px 16px;
+    border: 1px solid rgba(217, 119, 87, 0.16);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(217, 119, 87, 0.18), transparent 46%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 18px 44px rgba(0, 0, 0, 0.16);
+    perspective: 1200px;
+}
+
+.flip-unit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.flip-card {
     position: relative;
-    margin-bottom: 16px;
+    width: 48px;
+    height: 76px;
+    flex: 0 0 48px;
+    background: #18181f;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    color: #f8fafc;
+    box-shadow:
+        0 18px 28px rgba(0, 0, 0, 0.34),
+        0 6px 12px rgba(0, 0, 0, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -10px 22px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+    isolation: isolate;
+    transform-style: preserve-3d;
 }
 
-.timer-ring svg {
-    transform: rotate(-90deg);
+.flip-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 36%),
+        radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.10), transparent 48%);
+    pointer-events: none;
+    z-index: 6;
 }
 
-.timer-ring-bg {
-    fill: none;
-    stroke: var(--bg-tertiary);
-    stroke-width: 6;
+.flip-card-top, .flip-card-bottom, .flip-flap {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 50%;
+    overflow: hidden;
+    background: #24242d;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
-.timer-ring-progress {
-    fill: none;
-    stroke: var(--primary);
-    stroke-width: 8;
-    stroke-linecap: round;
-    stroke-dasharray: 628.318;
-    stroke-dashoffset: 628.318;
-    transition: stroke-dashoffset 1s linear;
-    filter: drop-shadow(0 0 10px var(--primary-glow-strong));
+.flip-card-top,
+.flip-flap-top {
+    top: 0;
+    border-radius: 15px 15px 0 0;
+    background: linear-gradient(180deg, #343441 0%, #25252f 100%);
+    transform-origin: center bottom;
 }
 
-.timer-center {
+.flip-card-bottom,
+.flip-flap-bottom {
+    bottom: 0;
+    border-radius: 0 0 15px 15px;
+    background: linear-gradient(180deg, #202029 0%, #17171f 100%);
+    transform-origin: center top;
+}
+
+.flip-flap {
+    z-index: 4;
+    transform-style: preserve-3d;
+    will-change: transform, filter;
+}
+
+.flip-flap-top {
+    animation: flipPaperTop 360ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.flip-flap-bottom {
+    transform: rotateX(90deg);
+    animation: flipPaperBottom 360ms cubic-bezier(0.16, 1, 0.3, 1) 340ms forwards;
+}
+
+.flip-card-value {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 76px;
+    line-height: 76px;
+    text-align: center;
+    font-size: 50px;
+    font-weight: 900;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    letter-spacing: -0.04em;
+    color: #ffffff;
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.12),
+        0 5px 14px rgba(0, 0, 0, 0.46);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+.flip-card-top .flip-card-value {
+    top: 0;
+}
+
+.flip-card-bottom .flip-card-value,
+.flip-flap-bottom .flip-card-value {
+    bottom: 0;
+}
+
+.flip-flap-top .flip-card-value {
+    top: 0;
+}
+
+.flip-divider {
     position: absolute;
     top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.72);
+    transform: translateY(-50%);
+    z-index: 5;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08),
+        0 -1px 0 rgba(0, 0, 0, 0.24);
+}
+
+.flip-colon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 76px;
+    color: var(--primary);
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1;
+    transform: translateY(-2px);
+    text-shadow: 0 0 18px var(--primary-glow);
+}
+
+@keyframes flipPaperTop {
+    0% {
+        transform: rotateX(0deg);
+        filter: brightness(1);
+    }
+    100% {
+        transform: rotateX(-90deg);
+        filter: brightness(0.62);
+    }
+}
+
+@keyframes flipPaperBottom {
+    0% {
+        transform: rotateX(90deg);
+        filter: brightness(0.62);
+    }
+    100% {
+        transform: rotateX(0deg);
+        filter: brightness(1);
+    }
+}
+
+.timer-label-container {
     text-align: center;
+    margin-bottom: 12px;
+    margin-top: -10px;
 }
 
 .timer-time {
-    display: block;
-    font-size: 38px;
-    font-weight: 800;
-    letter-spacing: -1.5px;
-    font-variant-numeric: tabular-nums;
+    display: none;
 }
 
 .timer-label {
@@ -1346,6 +1623,57 @@
     gap: 4px;
     overflow-x: auto;
     scrollbar-width: none;
+}
+
+.ai-message .message-content {
+    background: transparent;
+    padding: 0;
+}
+
+/* ============================================================
+   AI MESSAGE TYPOGRAPHY UPGRADE & STREAMING ANIMATION
+   ============================================================ */
+
+/* 1. Font Upgrade */
+.ai-message .text-body {
+    font-family: 'Source Serif 4', 'Georgia', 'Palatino Linotype', serif;
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.ai-message .text-body b,
+.ai-message .text-body strong,
+.ai-message .text-body h1,
+.ai-message .text-body h2,
+.ai-message .text-body h3,
+.ai-message .text-body h4,
+.ai-message .text-body h5,
+.ai-message .text-body h6 {
+    font-weight: 600;
+}
+
+.ai-message .text-body code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 14px;
+}
+
+/* 2. Word-By-Word Streaming Animation */
+.word-reveal {
+    opacity: 0;
+    animation: wordFadeIn 0.15s ease forwards;
+    display: inline-block; /* Required for transform animation to work on spans */
+}
+
+@keyframes wordFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================ */
+
+.ai-message .message-content .text-body {
+    color: var(--text-primary);
+    line-height: 1.6;
 }
 
 .math-tab {

@@ -107,16 +107,84 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sphinx")
 
 # ─────────────────────────────────────────────
+# GROQ FALLBACK CHAIN
+# ─────────────────────────────────────────────
+# llama-3.3-70b-versatile has a 100k TPD limit on the Groq free tier and
+# routinely returns 429 on bursty quiz/study-guide flows. The chain below is
+# walked in order: 70B → 8B → Gemma. Only RATE-LIMIT failures roll forward;
+# other exceptions are re-raised immediately so we don't mask real errors.
+
+from groq import AsyncGroq  # module-level so the helper doesn't re-import per call
+
+GROQ_MODEL_CHAIN = [
+    "openai/gpt-oss-120b",
+    "llama-3.3-70b-versatile",
+]
+
+
+async def groq_chat_with_fallback(
+    messages: list,
+    max_tokens: int = 1500,
+    temperature: float = 0.4,
+    response_format: Optional[dict] = None,
+) -> str:
+    """Try models in GROQ_MODEL_CHAIN in order; on 429/rate-limit fall through.
+
+    Returns the first non-empty assistant message content. Raises the last
+    encountered exception if every model fails. `response_format` (e.g.
+    `{"type": "json_object"}`) is passed through when provided.
+    """
+    if not GROQ_API_KEY:
+        raise RuntimeError("Groq API key not configured")
+
+    last_error: Optional[Exception] = None
+    for model in GROQ_MODEL_CHAIN:
+        try:
+            client = AsyncGroq(api_key=GROQ_API_KEY, timeout=60.0)
+            kwargs: dict[str, Any] = {
+                "model":       model,
+                "messages":    messages,
+                "max_tokens":  max_tokens,
+                "temperature": temperature,
+            }
+            if response_format is not None:
+                kwargs["response_format"] = response_format
+            response = await client.chat.completions.create(**kwargs)
+            return response.choices[0].message.content or ""
+        except Exception as exc:
+            msg = str(exc).lower()
+            is_rate_limited = (
+                "429" in msg
+                or "rate_limit" in msg
+                or "rate limit" in msg
+                or "tokens per day" in msg
+                or "tokens per minute" in msg
+            )
+            if is_rate_limited:
+                logger.warning("Groq model %s rate limited, falling through: %s", model, exc)
+                last_error = exc
+                continue
+            # Non-rate-limit failure: surface it to the caller untouched.
+            raise
+
+    # All models exhausted by 429s.
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Groq fallback chain returned no models")
+
+# ─────────────────────────────────────────────
 # MATH ENGINE IMPORTS
 # ─────────────────────────────────────────────
 
 try:
     # Preferred (package) import
+    # pyrefly: ignore [missing-import]
     from math_engine.algebra.algebra_engine import solve as algebra_solve
     print("✅ Algebra engine loaded")
 except Exception as e:
     try:
         # Legacy fallback (when math_engine/math_engine is on sys.path)
+        # pyrefly: ignore [missing-import]
         from algebra.algebra_engine import solve as algebra_solve
         print("✅ Algebra engine loaded (legacy import)")
     except Exception as e2:
@@ -129,6 +197,7 @@ try:
     print("✅ Calculus engine loaded")
 except Exception as e:
     try:
+        # pyrefly: ignore [missing-import]
         import calculus as _calculus  # legacy fallback
         calculus_solve = _calculus.solve
         print("✅ Calculus engine loaded (legacy import)")
@@ -142,6 +211,7 @@ try:
     print("✅ Geometry engine loaded")
 except Exception as e:
     try:
+        # pyrefly: ignore [missing-import]
         import geometry as _geometry  # legacy fallback
         geometry_solve = _geometry.solve
         print("✅ Geometry engine loaded (legacy import)")
@@ -155,6 +225,7 @@ try:
     print("✅ Statistics engine loaded")
 except Exception as e:
     try:
+        # pyrefly: ignore [missing-import]        
         import statistics_engine as _statistics_engine  # legacy fallback
         statistics_solve = _statistics_engine.solve
         print("✅ Statistics engine loaded (legacy import)")
@@ -168,6 +239,7 @@ try:
     print("✅ Linear algebra engine loaded")
 except Exception as e:
     try:
+        # pyrefly: ignore [missing-import]        
         import linear_algebra as _linear_algebra  # legacy fallback
         linear_algebra_solve = _linear_algebra.solve
         print("✅ Linear algebra engine loaded (legacy import)")
@@ -212,7 +284,7 @@ except ImportError:
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Application starting...")
+    print("Application starting...")
     if _generate_sync:
         try:
             # Warm up cloud embedding connection
@@ -303,6 +375,43 @@ class CheckRequest(BaseModel):
 
 class TitleRequest(BaseModel):
     text: str = Field(..., max_length=10000)
+
+
+class MCQGenerateRequest(BaseModel):
+    branch:     str = Field(default="algebra", max_length=64)
+    difficulty: str = Field(default="medium",  max_length=16)
+    # The UI only sends 1 or 5 — anything else gets clamped server-side in
+    # study_tools.generate_mcq. Keep the range generous here so we return
+    # 422 only for clearly malformed input.
+    count:      int = Field(default=1, ge=1, le=10)
+    source_question: Optional[str] = Field(default=None, max_length=1200)
+    context: Optional[str] = ""
+    unit: Optional[str] = ""
+    topic: Optional[str] = ""
+    user_question: Optional[str] = ""
+
+
+class MCQCheckRequest(BaseModel):
+    test_id:            str = Field(..., max_length=128)
+    question_id:        str = Field(..., max_length=128)
+    selected_option_id: str = Field(..., max_length=8)
+
+class QuizPanelGenerateRequest(BaseModel):
+    topic: str = Field(..., max_length=100)
+    unit: str = Field(..., max_length=200)
+    difficulty: str = Field(default="medium", max_length=20)
+    context: Optional[str] = ""
+
+
+class StudyGuideRequest(BaseModel):
+    unit: str = Field(..., max_length=200)
+    topic: str = Field(..., max_length=100)
+
+
+class CheatsheetRequest(BaseModel):
+    unit: str = Field(..., max_length=200)
+    topic: str = Field(..., max_length=100)
+
 
 # ─────────────────────────────────────────────
 # SOLVER HELPER
@@ -531,13 +640,16 @@ async def route_and_solve(
 
 # ✅ FIX (W-14): Add fallback import for study_agent
 try:
-    from backend.study_agent import get_study_agent
+    from backend.study_engine.study_agent import get_study_agent
 except ImportError:
-    from study_agent import get_study_agent
+    from study_engine.study_agent import get_study_agent
 
 
 async def _extract_image_text(image_data: Optional[str]) -> Optional[str]:
-    
+    """
+    ✅ Vision: Use Llama 4 Scout to extract text/equations from an uploaded image.
+    Returns the extracted text or None if no image or extraction fails.
+    """
     if not image_data:
         return None
     try:
@@ -576,7 +688,7 @@ def render_study_markdown(result: dict) -> str:
 
     if result.get("hint_text"):
         hints_left = result.get("hints_remaining", 0)
-        parts.append(f"💡 *({hints_left} hint{'s' if hints_left != 1 else ''} remaining)*\n\n" + result["hint_text"])
+        parts.append(f"*({hints_left} hint{'s' if hints_left != 1 else ''} remaining)*\n\n" + result["hint_text"])
 
     if result.get("solve_output"):
         parts.append(result["solve_output"])
@@ -592,7 +704,7 @@ def render_study_markdown(result: dict) -> str:
         stats = result.get("stats", {})
         if stats:
             parts.append(
-                f"📊 **{stats.get('problems_solved', 0)}** solved · "
+                f"**{stats.get('problems_solved', 0)}** solved · "
                 f"**{stats.get('hints_used', 0)}** hints · "
                 f"**{stats.get('total_attempts', 0)}** attempts"
             )
@@ -796,6 +908,295 @@ async def study_summary(req: StudyRequest):
     result = await agent.finish(req.session_id, req.question, req.branch, user_id=req.user_id or "")
     result["display_markdown"] = render_study_markdown(result)
     return result
+
+
+# ── Khan-style MCQ endpoints (PR-A) ────────────────────────────────
+#
+# These two endpoints are independent of study sessions — a student can
+# generate a quiz without starting Study Mode first. The generated test
+# lives in `mcq_tests_db` with the same TTL as study sessions. The route
+# layer is intentionally thin so all branching logic stays testable in
+# study_tools.{generate_mcq, check_mcq_answer}.
+
+try:
+    from backend.study_engine.study_tools import (
+        generate_mcq as _mcq_generate,
+        check_mcq_answer as _mcq_check,
+    )
+except ImportError:
+    from study_engine.study_tools import (
+        generate_mcq as _mcq_generate,
+        check_mcq_answer as _mcq_check,
+    )
+
+
+@app.post("/study/mcq/generate")
+async def study_mcq_generate(req: MCQGenerateRequest):
+    """Generate N MCQs for a given branch + difficulty.
+
+    Returns the test_id and a CLIENT-SAFE questions list (no correct ids,
+    no explanations). LLM calls run on the threadpool so the event loop
+    stays free.
+    """
+    try:
+        source = req.source_question or ""
+        if getattr(req, "context", None):
+            source += f"\n\nContext: The student is currently studying this topic based on this conversation context:\n---\n{req.context[:600]}\n---\nGenerate questions that are DIRECTLY related to the concept above. The questions MUST test understanding of what was just explained."
+        result = await asyncio.to_thread(
+            _mcq_generate, req.branch, req.difficulty, req.count, source
+        )
+        # Defence-in-depth: even if a future tool implementation forgot to
+        # strip the correct id, scrub it once more before serialising. This
+        # is the assertion the regression test pins on.
+        for q in result.get("questions", []):
+            q.pop("correctOptionId", None)
+            q.pop("correct_option_id", None)
+            q.pop("explanation", None)
+            q.pop("explanationAr", None)
+        return result
+    except ValueError as exc:
+        logger.warning("MCQ generation failed: %s", exc)
+        return JSONResponse(
+            {"success": False, "error": "MCQ generation failed"},
+            status_code=502,
+        )
+    except Exception as exc:
+        logger.error("MCQ generation crashed: %s", exc)
+        return JSONResponse(
+            {"success": False, "error": "Server error"},
+            status_code=500,
+        )
+
+
+@app.post("/study/mcq/check")
+async def study_mcq_check(req: MCQCheckRequest):
+    """Score one MCQ answer against the server-side record."""
+    try:
+        result = await asyncio.to_thread(
+            _mcq_check, req.test_id, req.question_id, req.selected_option_id
+        )
+        if result.get("error") == "test_not_found":
+            return JSONResponse(
+                {"success": False, "error": "Test not found or expired"},
+                status_code=404,
+            )
+        if result.get("error") == "question_not_found":
+            return JSONResponse(
+                {"success": False, "error": "Question not found"},
+                status_code=404,
+            )
+        return result
+    except Exception as exc:
+        logger.error("MCQ check crashed: %s", exc)
+        return JSONResponse(
+            {"success": False, "error": "Server error"},
+            status_code=500,
+        )
+
+@app.post("/study/quiz_panel/generate")
+async def study_quiz_panel_generate(req: QuizPanelGenerateRequest):
+    """Generate 5 MCQ questions for the Quiz Panel via the Groq fallback chain."""
+    if not GROQ_API_KEY:
+        return JSONResponse(
+            {"success": False, "error": "Groq API key not configured"},
+            status_code=500,
+        )
+
+    context_block = ""
+    if req.context:
+        context_block = f"""
+The student is currently studying this topic based on this conversation context:
+---
+{req.context[:600]}
+---
+Generate MCQ questions that are DIRECTLY related to the concept above.
+The questions must test understanding of what was just explained."""
+
+    system_prompt = (
+        f"You are a math quiz generator. Generate exactly 5 MCQ questions about {req.topic} - {req.unit}. "
+        f"Difficulty: {req.difficulty}. {context_block}\nReturn ONLY valid JSON, no markdown, no explanation:\n"
+        "{\n"
+        "  \"questions\": [\n"
+        "    {\n"
+        "      \"question\": \"latex math question here\",\n"
+        "      \"options\": [\"A) ...\", \"B) ...\", \"C) ...\", \"D) ...\"],\n"
+        "      \"correct\": \"A\",\n"
+        "      \"steps\": [\n"
+        "        {\"title\": \"Step 1: ...\", \"explanation\": \"...\", \"formula\": \"latex here\"},\n"
+        "        {\"title\": \"Step 2: ...\", \"explanation\": \"...\", \"formula\": \"latex here\"}\n"
+        "      ]\n"
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+
+    try:
+        content = await groq_chat_with_fallback(
+            messages=[{"role": "system", "content": system_prompt}],
+            max_tokens=2000,
+            temperature=0.7,
+            response_format={"type": "json_object"},
+        )
+
+        # Strip stray ```json fences in case any fallback model wraps the payload.
+        raw = re.sub(r"^```(?:json)?\s*", "", (content or "").strip(), flags=re.IGNORECASE)
+        raw = re.sub(r"\s*```\s*$", "", raw)
+
+        payload = json.loads(raw)
+        questions = payload.get("questions")
+        if not isinstance(questions, list) or not questions:
+            raise ValueError(
+                f"Quiz payload missing non-empty 'questions' list (got keys={list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__})"
+            )
+
+        return JSONResponse(payload)
+
+    except Exception as exc:
+        logger.error("Quiz generation failed: %s", exc, exc_info=True)
+        error_msg = str(exc)
+        if "429" in error_msg or "rate_limit" in error_msg.lower() or "rate limit" in error_msg.lower():
+            user_msg = "Rate limit reached. Please wait 1-2 minutes and try again."
+        elif "API key" in error_msg or "api key" in error_msg.lower():
+            user_msg = "API key not configured correctly."
+        else:
+            user_msg = f"Quiz generation failed: {error_msg[:200]}"
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": user_msg},
+        )
+
+
+# ── Study Guide and Cheatsheet generation (both JSON, both fallback) ──
+#
+# Both endpoints proxy Groq from the backend so the API key never leaves
+# the server. Both return JSON (not SSE) so they share the same fallback
+# helper and the frontend has one consistent response shape per FIX 5 audit.
+# Frontend renders progressively via word-reveal on the returned markdown.
+
+@app.post("/study/study_guide/generate")
+async def study_guide_generate(req: StudyGuideRequest):
+    """Return a markdown study guide for the given unit/topic as JSON."""
+    if not GROQ_API_KEY:
+        return JSONResponse(
+            {"success": False, "error": "Groq API key not configured"},
+            status_code=500,
+        )
+
+    system_prompt = (
+        f"You are an expert math educator. Generate a comprehensive study guide for "
+        f"{req.unit} in {req.topic}. Structure it as follows, using LaTeX for all "
+        f"formulas (wrap in $$ $$):\n\n"
+        "## [Main Concept 1 Title]\n"
+        "[2-3 sentence explanation]\n"
+        "Core formula or rule:\n"
+        "$$[LaTeX formula]$$\n"
+        "[1-2 sentence practical application note]\n\n"
+        "## [Main Concept 2 Title]\n"
+        "... (repeat pattern)\n\n"
+        "Cover 4-6 key concepts. Keep each explanation clear and exam-focused.\n"
+        "End with: ## Key Takeaways\n"
+        "- bullet point 1\n"
+        "- bullet point 2\n"
+        "- bullet point 3"
+    )
+    user_prompt = f"Generate study guide for {req.unit} - {req.topic}"
+
+    try:
+        markdown = await groq_chat_with_fallback(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            max_tokens=2500,
+            temperature=0.4,
+        )
+        if not (markdown or "").strip():
+            raise ValueError("Study guide came back empty")
+        return {"markdown": markdown}
+
+    except Exception as exc:
+        logger.error("Study guide generation failed: %s", exc, exc_info=True)
+        error_msg = str(exc)
+        if "429" in error_msg or "rate_limit" in error_msg.lower() or "rate limit" in error_msg.lower():
+            user_msg = "Rate limit reached. Please wait 1-2 minutes and try again."
+        elif "API key" in error_msg or "api key" in error_msg.lower():
+            user_msg = "API key not configured correctly."
+        else:
+            user_msg = f"Study guide generation failed: {error_msg[:200]}"
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": user_msg},
+        )
+
+
+@app.post("/study/cheatsheet/generate")
+async def cheatsheet_generate(req: CheatsheetRequest):
+    """Return a 6-8 entry cheatsheet as JSON: {cheatsheet: [{title, formula, note}, ...]}"""
+    if not GROQ_API_KEY:
+        return JSONResponse(
+            {"success": False, "error": "Groq API key not configured"},
+            status_code=500,
+        )
+
+    system_prompt = (
+        f"Generate a compact cheatsheet for {req.unit} in {req.topic}.\n"
+        "Return ONLY a valid JSON object with this exact shape:\n"
+        "{\"cheatsheet\":[{\"title\":\"FORMULA NAME\",\"formula\":\"LaTeX here\",\"note\":\"one line tip\"}]}\n"
+        "Generate 6-8 entries. The 'title' should be UPPERCASE. 'formula' is raw LaTeX "
+        "WITHOUT $$ delimiters. 'note' is one short sentence."
+    )
+
+    try:
+        content = await groq_chat_with_fallback(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": f"Generate cheatsheet for {req.unit} - {req.topic}"},
+            ],
+            max_tokens=1500,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+        )
+
+        raw = re.sub(r"^```(?:json)?\s*", "", (content or "").strip(), flags=re.IGNORECASE)
+        raw = re.sub(r"\s*```\s*$", "", raw)
+
+        data = json.loads(raw)
+        # Accept a couple of shapes the LLM occasionally produces.
+        cheatsheet = None
+        if isinstance(data, list):
+            cheatsheet = data
+        elif isinstance(data, dict):
+            cheatsheet = (
+                data.get("cheatsheet")
+                or data.get("formulas")
+                or data.get("entries")
+            )
+            if cheatsheet is None:
+                # Fall back to the first list value in the object.
+                for v in data.values():
+                    if isinstance(v, list):
+                        cheatsheet = v
+                        break
+
+        if not isinstance(cheatsheet, list) or not cheatsheet:
+            raise ValueError("Missing non-empty cheatsheet list in response")
+
+        return {"cheatsheet": cheatsheet}
+
+    except Exception as exc:
+        logger.error("Cheatsheet generation failed: %s", exc, exc_info=True)
+        error_msg = str(exc)
+        if "429" in error_msg or "rate_limit" in error_msg.lower() or "rate limit" in error_msg.lower():
+            user_msg = "Rate limit reached. Please wait 1-2 minutes and try again."
+        elif "API key" in error_msg or "api key" in error_msg.lower():
+            user_msg = "API key not configured correctly."
+        else:
+            user_msg = f"Cheatsheet generation failed: {error_msg[:200]}"
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": user_msg},
+        )
+
 #مجرد اختبار لعدد المستخدمين محدش يهتم بيها خالص
 # ── Admin Endpoints ───────────────────────────────────────────────
 
@@ -1006,7 +1407,7 @@ async def solve_stream(req: QuestionRequest):
             class_start = time.time()
             c = await asyncio.to_thread(llm_local.classify, req.question)
             class_duration = time.time() - class_start
-            logger.info(f"⏱️ Classification took {class_duration:.2f}s (Branch: {c.get('branch')})")
+            logger.info(f"Classification took {class_duration:.2f}s (Branch: {c.get('branch')})")
             return c.get("branch", "algebra")
         except Exception as e:
             logger.warning(f"Classification failed: {e}")
@@ -1018,7 +1419,7 @@ async def solve_stream(req: QuestionRequest):
                 mem_start = time.time()
                 context = await llm_local.memory.get_context(req.user_id, req.question)
                 mem_duration = time.time() - mem_start
-                logger.info(f"⏱️ Memory fetch took {mem_duration:.2f}s")
+                logger.info(f"Memory fetch took {mem_duration:.2f}s")
                 return context
             except Exception as e:
                 logger.warning(f"Memory fetch failed: {e}")
@@ -1046,7 +1447,7 @@ async def solve_stream(req: QuestionRequest):
                 vision_start = time.time()
                 image_context = await asyncio.to_thread(vision_scout.analyze_image_base64, req.image_data)
                 vision_duration = time.time() - vision_start
-                logger.info(f"⏱️ Vision Analysis took {vision_duration:.2f}s")
+                logger.info(f"Vision Analysis took {vision_duration:.2f}s")
 
                 # Inject the extracted context into the main LLM's prompt
                 enhanced_prompt = f"Image Description (extracted by Vision Scout):\n{image_context}\n\nUser Question:\n{messages[-1]['content']}"
@@ -1067,7 +1468,7 @@ async def solve_stream(req: QuestionRequest):
             yield f"data: {json.dumps({'error': 'Stream interrupted'})}\n\n"
         finally:
             total_duration = time.time() - start_time
-            logger.info(f"⏱️ Total stream duration: {total_duration:.2f}s")
+            logger.info(f"Total stream duration: {total_duration:.2f}s")
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(chunk_generator(), media_type="text/event-stream")

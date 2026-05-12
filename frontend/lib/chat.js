@@ -390,11 +390,68 @@ export async function handleSend() {
         const decoder = new TextDecoder();
         let buffer = '';
         let gotFirstToken = false;
+        
+        let renderedWordCount = 0;
+
+        // Wraps only new words in .word-reveal span to animate them sequentially
+        const wrapWordsInHTML = (html) => {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            let currentWordIndex = 0;
+
+            const walk = (node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tag = node.tagName.toLowerCase();
+                    // Skip code blocks, math wrappers, and inline code
+                    if (tag === 'code' || tag === 'pre' || node.classList.contains('math') || node.classList.contains('katex') || node.classList.contains('mathjax')) {
+                        return; 
+                    }
+                    for (let child of Array.from(node.childNodes)) {
+                        walk(child);
+                    }
+                } else if (node.nodeType === Node.TEXT_NODE) {
+                    const text = node.textContent;
+                    if (!text.trim()) return;
+
+                    // Split text by words, keep spaces as separate parts
+                    const parts = text.split(/(\s+)/);
+                    const fragment = document.createDocumentFragment();
+
+                    parts.forEach(part => {
+                        if (part.trim().length > 0) {
+                            if (currentWordIndex >= renderedWordCount) {
+                                const span = document.createElement('span');
+                                span.className = 'word-reveal';
+                                // Delay relative to the *new* words added in this specific chunk
+                                const delayIndex = currentWordIndex - renderedWordCount;
+                                span.style.animationDelay = `${delayIndex * 0.04}s`;
+                                span.textContent = part;
+                                fragment.appendChild(span);
+                            } else {
+                                fragment.appendChild(document.createTextNode(part));
+                            }
+                            currentWordIndex++;
+                        } else {
+                            fragment.appendChild(document.createTextNode(part));
+                        }
+                    });
+                    node.replaceWith(fragment);
+                }
+            };
+            
+            walk(tempDiv);
+            return { html: tempDiv.innerHTML, totalWords: currentWordIndex };
+        };
 
         const renderStreamingText = () => {
             if (!aiTextDiv) return;
             const cursor = '<span class="typing-cursor" aria-hidden="true"></span>';
-            aiTextDiv.innerHTML = formatMessage(fullAiResponse) + cursor;
+            const rawHtml = formatMessage(fullAiResponse);
+            
+            const { html, totalWords } = wrapWordsInHTML(rawHtml);
+            renderedWordCount = totalWords; // update rendered count for the next chunk
+            
+            aiTextDiv.innerHTML = html + cursor;
             scrollToBottom(_chatInterface, false);
         };
 
