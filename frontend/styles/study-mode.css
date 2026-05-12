@@ -753,6 +753,10 @@
     z-index: 10;
 }
 
+/* On desktop, the dashed drop-zone is the primary upload affordance,
+   so the inline "Attach" pill button is redundant — hide it. */
+.chat-attach-btn { display: none; }
+
 /* Compact Input Box for Chat Mode */
 .floating-search-wrapper .drop-zone {
     padding: 10px 20px;
@@ -2089,14 +2093,17 @@
         padding: 4px 12px 8px;
     }
 
+    /* Hide the big dashed drop-zone in chat mode on mobile. The
+       inline "Attach" pill button (in .search-tools) replaces it. */
     .floating-search-wrapper .drop-zone {
-        padding: 8px 12px;
-        width: calc(100% - 16px);
-        margin: 0 auto -10px;
+        display: none;
     }
+
+    .chat-attach-btn { display: flex; }
 
     .floating-search-wrapper .input-content {
         padding: 6px 10px;
+        /* No upward overlap needed since the drop-zone is hidden. */
     }
 
     .floating-search-wrapper .search-input {

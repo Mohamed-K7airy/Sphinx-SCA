@@ -621,6 +621,15 @@ function initImageUpload() {
             if (input) input.value = '';
         });
     });
+
+    // Inline "Attach" pill button (used on mobile where the dashed
+    // drop-zone is hidden to save vertical space). Triggers the same
+    // hidden file input as the drop-zone.
+    const attachBtn = $('chat-attach-btn');
+    const chatInput = $('chat-drop-zone-input');
+    if (attachBtn && chatInput) {
+        attachBtn.addEventListener('click', () => chatInput.click());
+    }
 }
 
 let uploadTimeout;

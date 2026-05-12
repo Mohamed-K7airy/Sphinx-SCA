@@ -388,28 +388,7 @@ body.app-page {
     transition: background-color var(--transition-base);
 }
 
-/* Atmospheric background gradient (dark theme only) */
-.dark-theme .main-content-wrapper {
-    background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(217, 119, 87, 0.06) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
-        var(--bg-primary);
-}
-
-/* Subtle grid pattern overlay */
-.dark-theme .main-content-wrapper::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 0;
-    mask-image: radial-gradient(ellipse 70% 50% at 50% 40%, black 20%, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 50% at 50% 40%, black 20%, transparent 70%);
-}
+/* Background kept clean — no fog or grid overlay */
 
 /* ============================================================
    SIDEBAR

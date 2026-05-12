@@ -10,7 +10,14 @@ const teamMembers = [
     handle: "K7airy",
     avatar: "/team/mohamed_final_transparent.png",
     status: "Online",
-    bio: "Frontend Developer specializing in modern, responsive web applications with Supabase integration and AI capabilities, delivering intelligent, user-friendly experiences.",
+    bio: `AI Engineer focused on Agentic AI, autonomous workflows, and intelligent systems.
+I build AI-powered products that combine LLMs, backend engineering, automation, and real-world problem solving — with a strong interest in Arabic AI experiences and education technology.
+Currently working on:
+- Agentic AI Systems
+- AI Agents 
+- Large Language Models (LLMs)
+- Backend Architecture & APIs
+Passionate about building products that don’t just generate answers — but reason, act, and solve problems.`,
     stats: { projects: "5+", experience: "2", gpa: "2.9+" },
   },
   {
