@@ -617,19 +617,22 @@ function initImageUpload() {
                 wrapper.style.display = 'none';
                 wrapper.classList.remove('is-loading', 'is-ready');
             }
-            $(`${type}-drop-zone`).style.display = 'block';
+            // Clear the inline display so the stylesheet decides whether to
+            // show the drop-zone (visible on desktop, hidden on mobile).
+            $(`${type}-drop-zone`)?.style.removeProperty('display');
             if (input) input.value = '';
         });
     });
 
-    // Inline "Attach" pill button (used on mobile where the dashed
-    // drop-zone is hidden to save vertical space). Triggers the same
-    // hidden file input as the drop-zone.
-    const attachBtn = $('chat-attach-btn');
-    const chatInput = $('chat-drop-zone-input');
-    if (attachBtn && chatInput) {
-        attachBtn.addEventListener('click', () => chatInput.click());
-    }
+    // Inline "Attach" pill buttons (used on mobile where the dashed
+    // drop-zone is hidden to save vertical space). Each triggers the
+    // same hidden file input that its drop-zone wraps.
+    [['hero-attach-btn', 'hero-drop-zone-input'],
+     ['chat-attach-btn', 'chat-drop-zone-input']].forEach(([btnId, inputId]) => {
+        const btn = $(btnId);
+        const input = $(inputId);
+        if (btn && input) btn.addEventListener('click', () => input.click());
+    });
 }
 
 let uploadTimeout;
@@ -1367,8 +1370,10 @@ async function handleStudySend(text, imageUrl, type, apiTextOverride) {
     input.style.height = 'auto';
     const previewWrapper = $(`${type}-image-preview-wrapper`);
     if (previewWrapper) previewWrapper.style.display = 'none';
+    // Clear the inline display so the stylesheet decides whether to show
+    // the drop-zone (visible on desktop, hidden on mobile via @media).
     const dropZone = $(`${type}-drop-zone`);
-    if (dropZone) dropZone.style.display = 'block';
+    if (dropZone) dropZone.style.removeProperty('display');
     state.uploadedImageUrl = null;
     const dropZoneInput = $(`${type}-drop-zone-input`);
     if (dropZoneInput) dropZoneInput.value = '';

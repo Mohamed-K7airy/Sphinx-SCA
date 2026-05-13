@@ -754,7 +754,8 @@
 }
 
 /* On desktop, the dashed drop-zone is the primary upload affordance,
-   so the inline "Attach" pill button is redundant — hide it. */
+   so the inline "Attach" pill buttons (used on mobile) are redundant. */
+.hero-attach-btn,
 .chat-attach-btn { display: none; }
 
 /* Compact Input Box for Chat Mode */
@@ -1942,24 +1943,16 @@
         max-width: 100%;
     }
 
-    .drop-zone {
-        padding: 14px 12px 24px !important;
-        height: auto !important;
-        width: calc(100% - 24px);
-        margin: 0 auto -14px;
-        border-radius: 14px 14px 0 0;
+    /* Hide the big dashed drop-zone in BOTH hero and chat states on
+       mobile. The inline "Attach" pill buttons (in .search-tools)
+       replace it. */
+    .hero-search-wrapper .drop-zone,
+    .floating-search-wrapper .drop-zone {
+        display: none;
     }
 
-    .drop-zone-icon {
-        font-size: 20px !important;
-        margin-bottom: 0;
-        display: inline-block !important;
-    }
-
-    .drop-zone-text {
-        font-size: 11.5px;
-        display: inline-block !important;
-    }
+    .hero-attach-btn,
+    .chat-attach-btn { display: flex; }
 
     .input-content {
         padding: 8px 12px 10px;
@@ -2093,13 +2086,8 @@
         padding: 4px 12px 8px;
     }
 
-    /* Hide the big dashed drop-zone in chat mode on mobile. The
-       inline "Attach" pill button (in .search-tools) replaces it. */
-    .floating-search-wrapper .drop-zone {
-        display: none;
-    }
-
-    .chat-attach-btn { display: flex; }
+    /* drop-zone hiding + .chat-attach-btn show is handled together
+       with the hero state earlier in this @media block. */
 
     .floating-search-wrapper .input-content {
         padding: 6px 10px;
